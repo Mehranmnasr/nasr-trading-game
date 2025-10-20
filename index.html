@@ -181,6 +181,9 @@
       <p>اسم ارز: <span id="coinNameDisplay">بیتکوین</span></p>
       <p>مارکت کپ: <span id="marketCap">336.0B</span></p>
       <p>تعداد عرضه کل: <span id="totalSupplyDisplay">21.00M</span></p>
+      <!-- اضافه شده: نمایش دامیننس بیتکوین -->
+      <p id="dominanceDisplay" style="display: none;">دامیننس بیتکوین: <span id="bitcoinDominanceValue">40%</span></p>
+      <!-- پایان اضافه شده -->
       <p>میزان سکه های ارز بصورت درصد: <span id="percentRemaining">100%</span></p>
       <p>میزان سکه های خریده شده ارز بصورت درصد: <span id="percentBought">0%</span></p>
       <hr style="margin: 10px 0;">
@@ -263,7 +266,7 @@
       <small>برای بستن، کلیک کنید</small>
     </div>
     <!-- تب کیف پول -->
-    <span class="tab" id="walletTab">🏦</span>
+    <span class="tab" id="walletTab">💼</span>
     <!-- کارت کیف پول -->
     <div id="walletCard" style="display: none;
         position: fixed;
@@ -427,6 +430,14 @@
     const volatilityUp = 0.03;
     const volatilityDown = 0.029;
     const cycleLength = 2;
+    // --- متغیرهای جدید برای دامیننس و همبستگی ---
+    let currentBitcoinDominance = 40; // شروع با 40%
+    let lastUpdatedMonth = virtualMonth; // ذخیره آخرین ماه بروزرسانی
+    const minDominance = 40;
+    const maxDominance = 70;
+    const minCorrelation = 0.30; // 30% همبستگی وقتی دامیننس 40% است
+    const maxCorrelation = 0.80; // 80% همبستگی وقتی دامیننس 70% است
+    // --- پایان متغیرهای جدید ---
     const timeFrameConfigs = {
       live: { maxPoints: 30, interval: 2000, timeframe: 'live' },
       hour1: { maxPoints: 50, interval: 3000, timeframe: 'hour1' }, // تغییر کرد
@@ -497,9 +508,9 @@
     let limitOrders = [];
     // ========== کیف پول جدید ==========
     let wallet = {}; // یک شیء خالی برای نگهداری ارزهای کیف پول
-    // ========== متغیرهای جدید برای همبستگی ==========
-    const correlationFactor = 0.8; // 80% همبستگی
-    const independentFactor = 1 - correlationFactor; // 20% مستقل
+    // ========== متغیرهای جدید برای همبستگی (اکنون پویا) ==========
+    // const correlationFactor = 0.8; // 80% همبستگی - این دیگر ثابت نیست
+    const independentFactor = 1 - maxCorrelation; // حداکثر مستقل (20% وقتی همبستگی 80% است)
     const independentVolatility = 0.01; // 1% نوسان مستقل
     // ========== Lightweight Charts ==========
     let priceChart = null;
@@ -587,6 +598,44 @@
       }
     }
     // ========== توابع کمکی اضافی ==========
+    // --- تابع جدید: محاسبه دامیننس بیتکوین بر اساس ماه ---
+    function calculateBitcoinDominance(currentMonth) {
+      // چرخه 4 ماهه: 40 -> 50 -> 60 -> 70 -> 40 ...
+      // ماه ها: 1,2,3,4,5,6,7,8 -> مقدار چرخه: (1-1)%4=0, (2-1)%4=1, (3-1)%4=2, (4-1)%4=3, (5-1)%4=0, ...
+      // اندیس چرخه: 0,1,2,3
+      const cycleIndex = (currentMonth - 1) % 4;
+      let dominance;
+      switch(cycleIndex) {
+        case 0:
+          dominance = 40;
+          break;
+        case 1:
+          dominance = 50;
+          break;
+        case 2:
+          dominance = 60;
+          break;
+        case 3:
+          dominance = 70;
+          break;
+        default:
+          dominance = 40; // پیش‌فرض
+      }
+      return dominance;
+    }
+    // --- پایان تابع جدید ---
+    // --- تابع جدید: محاسبه همبستگی بر اساس دامیننس ---
+    function calculateCorrelationFromDominance(dominance) {
+        // استفاده از فرمول خطی بین دو نقطه: (40, 0.30) و (70, 0.80)
+        // شیب = (0.80 - 0.30) / (70 - 40) = 0.50 / 30 = 0.016666...
+        // y - y1 = m(x - x1) -> y = m(x - x1) + y1
+        // y = 0.016666... * (dominance - 40) + 0.30
+        const slope = (maxCorrelation - minCorrelation) / (maxDominance - minDominance);
+        const calculatedCorrelation = slope * (dominance - minDominance) + minCorrelation;
+        // اطمینان از اینکه مقدار در بازه [minCorrelation, maxCorrelation] باشد
+        return Math.min(Math.max(calculatedCorrelation, minCorrelation), maxCorrelation);
+    }
+    // --- پایان تابع جدید ---
     function getCyclicFactor(currentStep, cycleLength) {
       const phase = (currentStep % cycleLength) / cycleLength;
       let factor;
@@ -599,10 +648,12 @@
       return factor;
     }
     function formatMarketCap(valueInMillions) {
-      if (valueInMillions >= 1000) {
-        return (valueInMillions / 1000).toFixed(1) + "B";
-      } else {
-        return valueInMillions.toFixed(1) + "M";
+      if (valueInMillions >= 1_000_000) { // اگر مقدار بیشتر یا مساوی 1000000 میلیون بود (یعنی 1 تریلیون دلار)
+        return (valueInMillions / 1_000_000).toFixed(1) + "T"; // تقسیم بر 1000000 و نمایش با T
+      } else if (valueInMillions >= 1000) { // اگر بین 1000 تا 999999 میلیون بود
+        return (valueInMillions / 1000).toFixed(1) + "B"; // تقسیم بر 1000 و نمایش با B
+      } else { // اگر کمتر از 1000 میلیون بود
+        return valueInMillions.toFixed(1) + "M"; // نمایش با M
       }
     }
     // تابع جدید برای فرمت عرضه کل
@@ -623,6 +674,15 @@
       currentCoin = coinKey;
       const newCoin = getCurrentCoinData();
       document.getElementById("coinNameDisplay").innerText = newCoin.name;
+      // --- بخش جدید: نمایش/عدم نمایش دامیننس در کارت اطلاعات ---
+      const dominanceDisplay = document.getElementById("dominanceDisplay");
+      if (coinKey === 'bitcoin') {
+        dominanceDisplay.style.display = 'block';
+        document.getElementById("bitcoinDominanceValue").innerText = currentBitcoinDominance.toFixed(2) + "%";
+      } else {
+        dominanceDisplay.style.display = 'none';
+      }
+      // --- پایان بخش جدید ---
       // استفاده از تابع جدید برای فرمت عرضه کل
       document.getElementById("totalSupplyDisplay").innerText = formatTotalSupply(newCoin.totalSupply);
       // --- بخش جدید: آپدیت مارکت کپ در کارت اطلاعات ---
@@ -901,7 +961,11 @@
         traderName,
         initialBalance,
         limitOrders,
-        wallet // اضافه کردن کیف پول به ذخیره
+        wallet, // اضافه کردن کیف پول به ذخیره
+        // --- ذخیره کردن متغیرهای جدید ---
+        currentBitcoinDominance,
+        lastUpdatedMonth
+        // --- پایان ذخیره ---
       };
       localStorage.setItem("nasrTradingGameSave", JSON.stringify(data));
     }
@@ -924,6 +988,10 @@
         initialBalance = data.initialBalance || 1000;
         limitOrders = data.limitOrders || [];
         wallet = data.wallet || {}; // بارگذاری کیف پول
+        // --- بارگذاری متغیرهای جدید ---
+        currentBitcoinDominance = data.currentBitcoinDominance !== undefined ? data.currentBitcoinDominance : 40;
+        lastUpdatedMonth = data.lastUpdatedMonth !== undefined ? data.lastUpdatedMonth : virtualMonth;
+        // --- پایان بارگذاری ---
         const freezeBtn = document.getElementById('freezePriceBtn');
         freezeBtn.innerText = isPriceFrozen ? '▶️' : '⏸️';
         freezeBtn.title = isPriceFrozen ? 'قیمت فریز شده — پامپ/دامپ غیرفعال' : 'فریز قیمت (جلوگیری از پامپ/دامپ)';
@@ -937,6 +1005,10 @@
           document.getElementById('coinNameTab').classList.add('active');
           const marketCapInMillions = (coins.bitcoin.livePrice * coins.bitcoin.totalSupply) / 1_000_000;
           document.getElementById("marketCap").innerText = formatMarketCap(marketCapInMillions);
+          // --- نمایش دامیننس در کارت اطلاعات بیتکوین بعد از بارگذاری ---
+          document.getElementById("dominanceDisplay").style.display = 'block';
+          document.getElementById("bitcoinDominanceValue").innerText = currentBitcoinDominance.toFixed(2) + "%";
+          // --- پایان بخش جدید ---
         } else if (currentCoin === 'ethereum') {
           document.getElementById('coinEthereumTab').classList.add('active');
           const marketCapInMillions = (coins.ethereum.livePrice * coins.ethereum.totalSupply) / 1_000_000;
@@ -1122,6 +1194,17 @@
     // ========== به‌روزرسانی نمودار با همبستگی ==========
     function updateChartContent() {
       if (isPriceFrozen) return;
+      // --- بخش جدید: چک کردن ماه و بروزرسانی دامیننس ---
+      if (virtualMonth !== lastUpdatedMonth) {
+        currentBitcoinDominance = calculateBitcoinDominance(virtualMonth);
+        lastUpdatedMonth = virtualMonth;
+        // اگر ارز فعلی بیتکوین است، بروزرسانی کارت اطلاعات
+        if (currentCoin === 'bitcoin') {
+          document.getElementById("bitcoinDominanceValue").innerText = currentBitcoinDominance.toFixed(2) + "%";
+        }
+        console.log(`ماه ${virtualMonth} شروع شد. دامیننس بیتکوین: ${currentBitcoinDominance}%`);
+      }
+      // --- پایان بخش جدید ---
       // --- محاسبه قیمت جدید بیت‌کوین (ارز پایه) ---
       const bitcoin = coins.bitcoin;
       let bias = Math.random();
@@ -1138,6 +1221,10 @@
       bitcoin.cycleStep++;
       bitcoin.cycleStep = bitcoin.cycleStep % (cycleLength * 2);
       // --- آپدیت قیمت همه ارزها با همبستگی (تغییر درصدی بیت‌کوین + نوسان مستقل) ---
+      // --- استفاده از همبستگی پویا ---
+      const dynamicCorrelation = calculateCorrelationFromDominance(currentBitcoinDominance);
+      const dynamicIndependentFactor = 1 - dynamicCorrelation;
+      // --- پایان استفاده از همبستگی پویا ---
       for (const key in coins) {
         const coin = coins[key];
         let independentBias = Math.random();
@@ -1148,7 +1235,7 @@
           independentChangePercent = -Math.random() * independentVolatility;
         }
         // محاسبه تغییر نهایی: (تغییر بیت‌کوین * ضریب همبستگی) + (تغییر مستقل * ضریب مستقل)
-        let finalChangePercent = (changePercent * correlationFactor) + (independentChangePercent * independentFactor);
+        let finalChangePercent = (changePercent * dynamicCorrelation) + (independentChangePercent * dynamicIndependentFactor);
         let newPrice = coin.livePrice * (1 + finalChangePercent);
         newPrice = Math.max(newPrice, 0.1); // اطمینان از حداقل قیمت
         // اعمال تغییرات فقط برای این ارز
@@ -1173,7 +1260,6 @@
         const marketCapInMillions = (coins.bitcoin.livePrice * coins.bitcoin.totalSupply) / 1_000_000;
         document.getElementById("marketCap").innerText = formatMarketCap(marketCapInMillions);
       }
-
       // --- بخش جدید: چک کردن RSI و اعمال تغییر قیمت روی همه ارزها ---
       if (!isPriceFrozen) { // فقط اگر قیمت فریز نباشه
         for (const coinKey in coins) {
@@ -1201,7 +1287,6 @@
                 newPriceForPumpDump = coin.livePrice * 0.98;
                 message = `📉 RSI ${coin.name} به ${lastRsiValue.toFixed(2)} رسید! دامپ 2% اعمال شد.`;
               }
-
               // اگر تغییری اعمال شد (RSI در بازه مورد نظر بود)
               if (newPriceForPumpDump !== coin.livePrice) {
                 // اطمینان از حداقل قیمت
@@ -1216,7 +1301,6 @@
         }
       }
       // --- پایان بخش جدید ---
-
       // اگر ارز فعلی فریز نبود، نمایش و نمودار رو آپدیت کن
       // این بخش فقط اگر ارز فعلی فریز نباشه اجرا می‌شه، اما داده‌ها به روز می‌شن
       if (!isPriceFrozen) {
@@ -1515,6 +1599,10 @@
         traderName = "پلیر";
         initialBalance = 1000;
         limitOrders = [];
+        // --- ریست متغیرهای جدید ---
+        currentBitcoinDominance = 40; // شروع با 40%
+        lastUpdatedMonth = virtualMonth; // ذخیره آخرین ماه بروزرسانی
+        // --- پایان ریست ---
         coins = {
           bitcoin: {
             name: "بیتکوین",
@@ -1576,6 +1664,10 @@
         updateDisplay();
         updateCalendarDisplay(virtualDay, virtualMonth, virtualYear);
         document.getElementById("coinNameDisplay").innerText = "بیتکوین";
+        // --- نمایش دامیننس در کارت اطلاعات بیتکوین بعد از ریست ---
+        document.getElementById("dominanceDisplay").style.display = 'block';
+        document.getElementById("bitcoinDominanceValue").innerText = currentBitcoinDominance.toFixed(2) + "%";
+        // --- پایان بخش جدید ---
         // استفاده از تابع جدید برای فرمت عرضه کل
         document.getElementById("totalSupplyDisplay").innerText = formatTotalSupply(21000000);
         document.getElementById("coinNameTab").innerText = "بیتکوین";
@@ -1701,6 +1793,14 @@
       updateCalendarDisplay(virtualDay, virtualMonth, virtualYear);
       updateCoinPercentages();
       document.getElementById("coinNameDisplay").innerText = coin.name;
+      // --- نمایش دامیننس در کارت اطلاعات بیتکوین بعد از بارگذاری ---
+      if (currentCoin === 'bitcoin') {
+          document.getElementById("dominanceDisplay").style.display = 'block';
+          document.getElementById("bitcoinDominanceValue").innerText = currentBitcoinDominance.toFixed(2) + "%";
+      } else {
+          document.getElementById("dominanceDisplay").style.display = 'none';
+      }
+      // --- پایان بخش جدید ---
       // استفاده از تابع جدید برای فرمت عرضه کل
       document.getElementById("totalSupplyDisplay").innerText = formatTotalSupply(coin.totalSupply);
       document.getElementById("coinNameTab").innerText = "بیتکوین";
