@@ -88,6 +88,20 @@
       border: none;
       border-radius: 4px;
     }
+    .upgrade-btn {
+      padding: 8px 12px; /* کمی کوچکتر */
+      margin: 2px 1px; /* کمی کوچکتر */
+      font-size: 14px; /* کمی کوچکتر */
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      background-color: #007bff; /* رنگ آبی */
+      color: white;
+    }
+    .upgrade-btn:disabled {
+      background-color: #6c757d; /* رنگ خاکستری وقتی غیرفعال */
+      cursor: not-allowed;
+    }
     .info {
       margin-top: 10px;
     }
@@ -157,6 +171,42 @@
     }
     #walletTab.active {
       background-color: #218838; /* رنگ سبز تیره‌تر */
+    }
+    /* استایل جدید برای کارت ارتقاء */
+    #upgradeCard {
+      display: none;
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      color: black;
+      padding: 20px;
+      border-radius: 8px;
+      width: 320px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      z-index: 1000;
+      cursor: pointer;
+    }
+    #upgradeCard .upgrade-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+    #upgradeCard .upgrade-item:last-child {
+      border-bottom: none;
+    }
+    #upgradeTab {
+      background-color: #6f42c1; /* رنگ بنفش */
+    }
+    #upgradeTab.active {
+      background-color: #5a32a3; /* رنگ بنفش تیره‌تر */
+    }
+    .upgrade-tab-inactive {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
   </style>
 </head>
@@ -285,6 +335,45 @@
       <ul id="walletList">
         <!-- محتوای کیف پول اینجا نمایش داده می‌شود -->
       </ul>
+      <small>برای بستن، کلیک کنید</small>
+    </div>
+    <!-- تب ارتقاء (Diamond) -->
+    <span class="tab" id="upgradeTab">💎</span>
+    <!-- کارت ارتقاء -->
+    <div id="upgradeCard" style="display: none;
+        position: fixed;
+        top: 70px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: white;
+        color: black;
+        padding: 20px;
+        border-radius: 8px;
+        width: 320px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        z-index: 1000;
+        cursor: pointer;">
+      <h3>ارتقای ارز دیجیتال</h3>
+      <div class="upgrade-item">
+        <span>افزایش سرعت تراکنش (TPS)</span>
+        <button class="upgrade-btn" id="upgradeTpsBtn">خرید</button>
+      </div>
+      <div class="upgrade-item">
+        <span>بهبود امنیت (RSA512 -> SHA256)</span>
+        <button class="upgrade-btn" id="upgradeSecurityBtn">خرید</button>
+      </div>
+      <div class="upgrade-item">
+        <span>تغییر الگوریتم اجماع (PoW -> PoS)</span>
+        <button class="upgrade-btn" id="upgradeConsensusBtn">خرید</button>
+      </div>
+      <div class="upgrade-item">
+        <span>قابلیت استفاده در NFT</span>
+        <button class="upgrade-btn" id="upgradeNftBtn">خرید</button>
+      </div>
+      <div class="upgrade-item">
+        <span>مارکتینگ و برندینگ</span>
+        <button class="upgrade-btn" id="upgradeMarketingBtn">خرید</button>
+      </div>
       <small>برای بستن، کلیک کنید</small>
     </div>
   </div>
@@ -713,6 +802,9 @@
         document.getElementById('personalCoinTab').classList.add('active');
       }
       // --- پایان بخش اصلاح شده ---
+      // --- بخش جدید: بروزرسانی وضعیت تب ارتقاء ---
+      updateUpgradeTabStatus();
+      // --- پایان بخش جدید ---
     }
     function checkLimitOrdersForCoin(coinKey, newPrice) {
       // این تابع الان فقط چک می‌کنه که آیا اوردرهای مربوط به این ارز (coinKey) اجرا می‌شن یا نه
@@ -927,6 +1019,9 @@
       // --- بخش جدید: بروزرسانی کارت کیف پول ---
       updateWalletDisplay();
       // --- پایان بخش جدید ---
+      // --- بخش جدید: بروزرسانی وضعیت دکمه‌های ارتقاء ---
+      updateUpgradeButtons();
+      // --- پایان بخش جدید ---
     }
     // ========== تابع جدید: اصلاح شده برای محاسبه درصدها با در نظر گرفتن کیف پول ==========
     function updateCoinPercentages() {
@@ -964,7 +1059,9 @@
         wallet, // اضافه کردن کیف پول به ذخیره
         // --- ذخیره کردن متغیرهای جدید ---
         currentBitcoinDominance,
-        lastUpdatedMonth
+        lastUpdatedMonth,
+        // --- ذخیره کردن ارتقاهای ارز شخصی ---
+        personalCoinUpgrades: coins[personalCoinKey]?.upgrades || [] // ذخیره لیست ارتقاهای خریداری شده
         // --- پایان ذخیره ---
       };
       localStorage.setItem("nasrTradingGameSave", JSON.stringify(data));
@@ -991,6 +1088,15 @@
         // --- بارگذاری متغیرهای جدید ---
         currentBitcoinDominance = data.currentBitcoinDominance !== undefined ? data.currentBitcoinDominance : 40;
         lastUpdatedMonth = data.lastUpdatedMonth !== undefined ? data.lastUpdatedMonth : virtualMonth;
+        // --- بارگذاری ارتقاهای ارز شخصی ---
+        if (personalCoinKey && data.personalCoinUpgrades) {
+          if (!coins[personalCoinKey]) {
+             coins[personalCoinKey] = {
+               upgrades: [] // اگر ارز وجود نداشت (مثلاً بعد از ریست اما قبل از ساخت مجدد)، فقط لیست ارتقاهای ذخیره شده را داشته باش
+             };
+          }
+          coins[personalCoinKey].upgrades = data.personalCoinUpgrades; // بارگذاری لیست ارتقاهای خریداری شده
+        }
         // --- پایان بارگذاری ---
         const freezeBtn = document.getElementById('freezePriceBtn');
         freezeBtn.innerText = isPriceFrozen ? '▶️' : '⏸️';
@@ -1022,6 +1128,10 @@
           const marketCapInMillions = (coins[personalCoinKey].livePrice * coins[personalCoinKey].totalSupply) / 1_000_000;
           document.getElementById("marketCap").innerText = formatMarketCap(marketCapInMillions);
         }
+        // --- پایان بخش جدید ---
+        // --- بخش جدید: بروزرسانی وضعیت تب ارتقاء و دکمه‌های ارتقاء پس از بارگذاری ---
+        updateUpgradeTabStatus();
+        updateUpgradeButtons();
         // --- پایان بخش جدید ---
       }
     }
@@ -1375,7 +1485,8 @@
           hour4: createInitialTimeframeData(price),
           day1: createInitialTimeframeData(price),
           week1: createInitialTimeframeData(price) // اضافه شد
-        }
+        },
+        upgrades: [] // شروع با لیست خالی ارتقاهای خریداری شده
       };
       balance -= 100;
       document.getElementById("personalCoinTab").innerText = name;
@@ -1387,6 +1498,10 @@
       document.getElementById("totalSupplyDisplay").innerText = formatTotalSupply(supply);
       // بروزرسانی درصدها بعد از ساخت ارز جدید
       updateCoinPercentages();
+      // --- بخش جدید: بروزرسانی وضعیت تب ارتقاء بعد از ساخت ارز ---
+      updateUpgradeTabStatus();
+      updateUpgradeButtons();
+      // --- پایان بخش جدید ---
       alert(`🎉 ارز "${name}" بر روی شبکه "${network}" با موفقیت ساخته شد!
 80% (${formatTotalSupply(myCoins)} سکه) به کیف پول شما اضافه شد.
 20% (${formatTotalSupply(freeSupply)} سکه) برای فروش در بازار آزاد قرار گرفت.`);
@@ -1413,6 +1528,113 @@
       liquidityPool -= amount;
       updateDisplay();
       updateCoinPercentages();
+      saveGame();
+    }
+    // ========== توابع مربوط به ارتقاء ==========
+    // --- تابع جدید: بروزرسانی وضعیت تب ارتقاء ---
+    function updateUpgradeTabStatus() {
+      const upgradeTab = document.getElementById('upgradeTab');
+      // حذف event listener قبلی، صرف نظر از اینکه فعال بوده یا نه
+      upgradeTab.onclick = null;
+
+      if (currentCoin === personalCoinKey) {
+        upgradeTab.classList.remove('upgrade-tab-inactive');
+        upgradeTab.style.opacity = '1';
+        upgradeTab.style.cursor = 'pointer';
+        // اضافه کردن event listener فقط اگر ارز شخصی باشد
+        upgradeTab.onclick = showUpgradeCard;
+      } else {
+        upgradeTab.classList.add('upgrade-tab-inactive');
+        upgradeTab.style.opacity = '0.5';
+        upgradeTab.style.cursor = 'not-allowed';
+        // تأیید که event listener حذف شده است
+      }
+    }
+    // --- تابع جدید: نمایش کارت ارتقاء ---
+    function showUpgradeCard() {
+      const upgradeCard = document.getElementById('upgradeCard');
+      if (upgradeCard.style.display === 'none') {
+        upgradeCard.style.display = 'block';
+        showOverlay();
+      } else {
+        upgradeCard.style.display = 'none';
+        hideOverlay();
+      }
+    }
+    // --- تابع جدید: بروزرسانی وضعیت دکمه‌های ارتقاء ---
+    function updateUpgradeButtons() {
+      if (currentCoin !== personalCoinKey) return; // فقط اگر ارز شخصی انتخاب شده باشد
+
+      const coin = getCurrentCoinData();
+      const upgrades = coin.upgrades || []; // اگر ارتقاهایی وجود نداشت، لیست خالی
+
+      const upgradeButtons = {
+        'upgradeTpsBtn': 'TPS',
+        'upgradeSecurityBtn': 'Security',
+        'upgradeConsensusBtn': 'Consensus',
+        'upgradeNftBtn': 'NFT',
+        'upgradeMarketingBtn': 'Marketing'
+      };
+
+      for (const [buttonId, upgradeName] of Object.entries(upgradeButtons)) {
+        const button = document.getElementById(buttonId);
+        if (button) {
+          if (upgrades.includes(upgradeName)) {
+            // ارتقاء قبلاً خریداری شده
+            button.disabled = true;
+            button.textContent = '✅';
+          } else {
+            // ارتقاء در دسترس برای خرید
+            button.disabled = false;
+            button.textContent = 'خرید';
+          }
+        }
+      }
+    }
+    // --- تابع جدید: خرید ارتقاء ---
+    function purchaseUpgrade(upgradeName) {
+      if (currentCoin !== personalCoinKey) {
+        alert("ابتدا ارز شخصی خود را انتخاب کنید.");
+        return;
+      }
+      if (balance < 1000) {
+        alert("موجودی شما برای خرید این ارتقاء کافی نیست! نیاز به 1000 دلار دارید.");
+        return;
+      }
+
+      const coin = getCurrentCoinData();
+      if (!coin.upgrades) {
+        coin.upgrades = [];
+      }
+
+      if (coin.upgrades.includes(upgradeName)) {
+        alert("این ارتقاء قبلاً خریداری شده است.");
+        return;
+      }
+
+      balance -= 1000;
+      coin.upgrades.push(upgradeName); // اضافه کردن ارتقاء به لیست
+
+      // پامپ 5% قیمت
+      coin.livePrice *= 1.05;
+      // اعمال تغییر قیمت به تمام تایم‌فریم‌ها
+      for (let tf of ['live', 'hour1', 'hour4', 'day1', 'week1']) {
+        const data = coin.timeframes[tf];
+        if (data.priceData.length > 0) {
+          data.priceData[data.priceData.length - 1] = coin.livePrice;
+          data.rsiData = calculateRSI(data.priceData, rsiPeriod);
+          data.smaData = calculateSMA(data.priceData, smaPeriod);
+        }
+      }
+      // آپدیت نمودارها و نمایش
+      updateDisplay();
+      updatePriceChart();
+      const activeTfData = coin.timeframes[currentConfig.timeframe];
+      rsiChart.data.labels = activeTfData.labels.slice(-currentConfig.maxPoints);
+      rsiChart.data.datasets[0].data = activeTfData.rsiData.slice(-currentConfig.maxPoints);
+      rsiChart.update();
+
+      alert(`🎉 ارتقاء "${upgradeName}" با موفقیت خریداری شد! قیمت ارز شما 5% پامپ شد.`);
       saveGame();
     }
     // ========== رویدادها ==========
@@ -1685,6 +1907,10 @@
         // بروزرسانی کلاس‌های فعال بعد از ریست
         document.querySelectorAll('.coin-tab').forEach(tab => tab.classList.remove('active'));
         document.getElementById('coinNameTab').classList.add('active');
+        // --- بخش جدید: بروزرسانی وضعیت تب ارتقاء و دکمه‌های ارتقاء پس از ریست ---
+        updateUpgradeTabStatus();
+        updateUpgradeButtons();
+        // --- پایان بخش جدید ---
         alert("بازی با موفقیت ریست شد.");
       }
     });
@@ -1765,6 +1991,19 @@
       document.getElementById('walletCard').style.display = 'none';
       hideOverlay();
     });
+    // تب ارتقاء (Diamond) - دیگر onclick مستقیم ندارد
+    // document.getElementById('upgradeTab').addEventListener('click', showUpgradeCard); // این خط حذف شد
+    document.getElementById('upgradeCard').addEventListener('click', () => {
+      document.getElementById('upgradeCard').style.display = 'none';
+      hideOverlay();
+    });
+    // دکمه‌های خرید ارتقاء
+    document.getElementById('upgradeTpsBtn').addEventListener('click', () => purchaseUpgrade('TPS'));
+    document.getElementById('upgradeSecurityBtn').addEventListener('click', () => purchaseUpgrade('Security'));
+    document.getElementById('upgradeConsensusBtn').addEventListener('click', () => purchaseUpgrade('Consensus'));
+    document.getElementById('upgradeNftBtn').addEventListener('click', () => purchaseUpgrade('NFT'));
+    document.getElementById('upgradeMarketingBtn').addEventListener('click', () => purchaseUpgrade('Marketing'));
+
     document.addEventListener('click', (e) => {
       if (e.target.id === 'overlay') {
         hideOverlay();
@@ -1773,6 +2012,7 @@
         document.getElementById('secretForm').style.display = 'none';
         document.getElementById('profileCard').style.display = 'none';
         document.getElementById('walletCard').style.display = 'none';
+        document.getElementById('upgradeCard').style.display = 'none'; // اضافه شد
       }
     });
     document.getElementById('freezePriceBtn').addEventListener('click', function() {
