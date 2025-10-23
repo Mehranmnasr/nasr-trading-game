@@ -1388,13 +1388,13 @@
             if (lastRsiValue !== null) {
               let newPriceForPumpDump = coin.livePrice;
               let message = '';
-              if (lastRsiValue <= 20) {
-                // پامپ 2 درصدی
-                newPriceForPumpDump = coin.livePrice * 1.02;
+              if (lastRsiValue <= 25) {
+                // پامپ 1 درصدی
+                newPriceForPumpDump = coin.livePrice * 1.01;
                 message = `📈 RSI ${coin.name} به ${lastRsiValue.toFixed(2)} رسید! پامپ 2% اعمال شد.`;
-              } else if (lastRsiValue >= 80) {
-                // دامپ 2 درصدی
-                newPriceForPumpDump = coin.livePrice * 0.98;
+              } else if (lastRsiValue >= 75) {
+                // دامپ 1 درصدی
+                newPriceForPumpDump = coin.livePrice * 0.99;
                 message = `📉 RSI ${coin.name} به ${lastRsiValue.toFixed(2)} رسید! دامپ 2% اعمال شد.`;
               }
               // اگر تغییری اعمال شد (RSI در بازه مورد نظر بود)
