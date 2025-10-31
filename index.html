@@ -494,7 +494,7 @@
     // ========== متغیرهای ثابت ==========
     const rsiPeriod = 14;
     const smaPeriod = 50;
-    const globalMaxHistory = 250; // تغییر کرد
+    const globalMaxHistory = 200; // تغییر کرد
     // ========== تابع ساخت داده اولیه ==========
     function createInitialTimeframeData(price) {
       return {
@@ -528,11 +528,11 @@
     const maxCorrelation = 0.80; // 80% همبستگی وقتی دامیننس 70% است
     // --- پایان متغیرهای جدید ---
     const timeFrameConfigs = {
-      live: { maxPoints: 30, interval: 2000, timeframe: 'live' },
-      hour1: { maxPoints: 50, interval: 3000, timeframe: 'hour1' }, // تغییر کرد
-      hour4: { maxPoints: 100, interval: 4000, timeframe: 'hour4' }, // تغییر کرد
-      day1: { maxPoints: 150, interval: 5000, timeframe: 'day1' }, // تغییر کرد
-      week1: { maxPoints: 200, interval: 6000, timeframe: 'week1' } // اضافه شد
+      live: { maxPoints: 50, interval: 2000, timeframe: 'live' },
+      hour1: { maxPoints: 80, interval: 3000, timeframe: 'hour1' }, // تغییر کرد
+      hour4: { maxPoints: 110, interval: 4000, timeframe: 'hour4' }, // تغییر کرد
+      day1: { maxPoints: 140, interval: 5000, timeframe: 'day1' }, // تغییر کرد
+      week1: { maxPoints: 170, interval: 6000, timeframe: 'week1' } // اضافه شد
     };
     let currentConfig = timeFrameConfigs.live;
     let currentIntervalId = null;
