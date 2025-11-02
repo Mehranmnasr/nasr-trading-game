@@ -5,10 +5,151 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>بازی ترید ارز دیجیتال نصر</title>
   <!-- Lightweight Charts -->
-  <script src="https://unpkg.com/lightweight-charts@4.1.2/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="https://unpkg.com/lightweight-charts@4.1.2/dist/lightweight-charts.standalone.production.js">
+// ====== اندیکاتور سطوح حمایت و مقاومت ======
+function detectSupportResistance(prices, leftBars = 15, rightBars = 15) {
+  const supports = [];
+  const resistances = [];
+  for (let i = leftBars; i < prices.length - rightBars; i++) {
+    let isSupport = true;
+    let isResistance = true;
+    const current = prices[i];
+    for (let j = 1; j <= leftBars; j++) {
+      if (prices[i - j] <= current) isSupport = false;
+      if (prices[i - j] >= current) isResistance = false;
+    }
+    for (let j = 1; j <= rightBars; j++) {
+      if (prices[i + j] <= current) isSupport = false;
+      if (prices[i + j] >= current) isResistance = false;
+    }
+    if (isSupport) supports.push({ index: i, price: current });
+    if (isResistance) resistances.push({ index: i, price: current });
+  }
+  return { supports, resistances };
+}
+
+function drawSupportResistanceLines(chart, prices, leftBars = 15, rightBars = 15) {
+  const { supports, resistances } = detectSupportResistance(prices, leftBars, rightBars);
+  const timeBase = Math.floor(Date.now() / 1000) - prices.length * 60;
+  supports.forEach(level => {
+    chart.addLineSeries({
+      color: '#233dee',
+      lineWidth: 2
+    }).setData([
+      { time: timeBase + level.index * 60, value: level.price },
+      { time: timeBase + (level.index + rightBars) * 60, value: level.price }
+    ]);
+  });
+  resistances.forEach(level => {
+    chart.addLineSeries({
+      color: '#FF0000',
+      lineWidth: 2
+    }).setData([
+      { time: timeBase + level.index * 60, value: level.price },
+      { time: timeBase + (level.index + rightBars) * 60, value: level.price }
+    ]);
+  });
+}
+// ====== پایان اندیکاتور ======
+
+</script>
   <!-- Chart.js for RSI -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.0/dist/chartjs-plugin-annotation.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js">
+// ====== اندیکاتور سطوح حمایت و مقاومت ======
+function detectSupportResistance(prices, leftBars = 15, rightBars = 15) {
+  const supports = [];
+  const resistances = [];
+  for (let i = leftBars; i < prices.length - rightBars; i++) {
+    let isSupport = true;
+    let isResistance = true;
+    const current = prices[i];
+    for (let j = 1; j <= leftBars; j++) {
+      if (prices[i - j] <= current) isSupport = false;
+      if (prices[i - j] >= current) isResistance = false;
+    }
+    for (let j = 1; j <= rightBars; j++) {
+      if (prices[i + j] <= current) isSupport = false;
+      if (prices[i + j] >= current) isResistance = false;
+    }
+    if (isSupport) supports.push({ index: i, price: current });
+    if (isResistance) resistances.push({ index: i, price: current });
+  }
+  return { supports, resistances };
+}
+
+function drawSupportResistanceLines(chart, prices, leftBars = 15, rightBars = 15) {
+  const { supports, resistances } = detectSupportResistance(prices, leftBars, rightBars);
+  const timeBase = Math.floor(Date.now() / 1000) - prices.length * 60;
+  supports.forEach(level => {
+    chart.addLineSeries({
+      color: '#233dee',
+      lineWidth: 2
+    }).setData([
+      { time: timeBase + level.index * 60, value: level.price },
+      { time: timeBase + (level.index + rightBars) * 60, value: level.price }
+    ]);
+  });
+  resistances.forEach(level => {
+    chart.addLineSeries({
+      color: '#FF0000',
+      lineWidth: 2
+    }).setData([
+      { time: timeBase + level.index * 60, value: level.price },
+      { time: timeBase + (level.index + rightBars) * 60, value: level.price }
+    ]);
+  });
+}
+// ====== پایان اندیکاتور ======
+
+</script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.0/dist/chartjs-plugin-annotation.min.js">
+// ====== اندیکاتور سطوح حمایت و مقاومت ======
+function detectSupportResistance(prices, leftBars = 15, rightBars = 15) {
+  const supports = [];
+  const resistances = [];
+  for (let i = leftBars; i < prices.length - rightBars; i++) {
+    let isSupport = true;
+    let isResistance = true;
+    const current = prices[i];
+    for (let j = 1; j <= leftBars; j++) {
+      if (prices[i - j] <= current) isSupport = false;
+      if (prices[i - j] >= current) isResistance = false;
+    }
+    for (let j = 1; j <= rightBars; j++) {
+      if (prices[i + j] <= current) isSupport = false;
+      if (prices[i + j] >= current) isResistance = false;
+    }
+    if (isSupport) supports.push({ index: i, price: current });
+    if (isResistance) resistances.push({ index: i, price: current });
+  }
+  return { supports, resistances };
+}
+
+function drawSupportResistanceLines(chart, prices, leftBars = 15, rightBars = 15) {
+  const { supports, resistances } = detectSupportResistance(prices, leftBars, rightBars);
+  const timeBase = Math.floor(Date.now() / 1000) - prices.length * 60;
+  supports.forEach(level => {
+    chart.addLineSeries({
+      color: '#233dee',
+      lineWidth: 2
+    }).setData([
+      { time: timeBase + level.index * 60, value: level.price },
+      { time: timeBase + (level.index + rightBars) * 60, value: level.price }
+    ]);
+  });
+  resistances.forEach(level => {
+    chart.addLineSeries({
+      color: '#FF0000',
+      lineWidth: 2
+    }).setData([
+      { time: timeBase + level.index * 60, value: level.price },
+      { time: timeBase + (level.index + rightBars) * 60, value: level.price }
+    ]);
+  });
+}
+// ====== پایان اندیکاتور ======
+
+</script>
   <style>
     body {
       background-color: #003366;
@@ -685,6 +826,7 @@
       if (data.length > 0) {
         priceChart.timeScale().fitContent();
       }
+      drawSupportResistanceLines(priceChart, tfData.priceData);
     }
     // ========== توابع کمکی اضافی ==========
     // --- تابع جدید: محاسبه دامیننس بیتکوین بر اساس ماه ---
@@ -2051,6 +2193,115 @@
       document.getElementById("marketCap").innerText = formatMarketCap(initialMarketCapInMillions);
       setTimeFrame("live");
     };
-  </script>
+  
+// ====== اندیکاتور سطوح حمایت و مقاومت (اصلاح‌شده - فقط آخرین خطوط با گسترش راست) ======
+// این نسخه فقط آخرین سطح حمایت و مقاومت را رسم می‌کند و خطوط قبلی را پاک می‌کند.
+
+// یک Map برای ذخیره سری‌های خطوط SR مربوط به هر نمودار
+const srSeriesMap = new Map(); // { chartId: [series1, series2, ...] }
+
+function detectSupportResistance(prices, leftBars = 15, rightBars = 15) {
+    const supports = [];
+    const resistances = [];
+
+    for (let i = leftBars; i < prices.length - rightBars; i++) {
+        let isSupport = true;
+        let isResistance = true;
+        const current = prices[i];
+
+        for (let j = 1; j <= leftBars; j++) {
+            if (prices[i - j] <= current) isSupport = false;
+            if (prices[i - j] >= current) isResistance = false;
+        }
+        for (let j = 1; j <= rightBars; j++) {
+            if (prices[i + j] <= current) isSupport = false;
+            if (prices[i + j] >= current) isResistance = false;
+        }
+
+        if (isSupport) supports.push({ index: i, price: current });
+        if (isResistance) resistances.push({ index: i, price: current });
+    }
+    return { supports, resistances };
+}
+
+function clearSRLines(chart) {
+    // فرض می‌کنیم فقط یک نمودار اصلی به نام priceChart وجود دارد
+    if (chart === priceChart) {
+        const seriesList = srSeriesMap.get('priceChart') || [];
+        seriesList.forEach(series => {
+            chart.removeSeries(series);
+        });
+        srSeriesMap.set('priceChart', []);
+    }
+    // اگر نمودارهای دیگه داشتیم، باید همین کار رو برای اون‌ها هم انجام بدیم.
+    // برای این مثال فقط priceChart در نظر گرفته شده.
+}
+
+function drawSupportResistanceLines(chart, prices, options = {}) {
+    const leftBars = options.leftBars || 15;
+    const rightBars = options.rightBars || 15;
+    const secondsPerBar = options.secondsPerBar || 60;
+
+    // پاک کردن خطوط قبلی مربوط به همین نمودار
+    clearSRLines(chart);
+
+    if (!Array.isArray(prices) || prices.length < leftBars + rightBars + 1) return;
+
+    const { supports, resistances } = detectSupportResistance(prices, leftBars, rightBars);
+
+    // فقط آخرین حمایت و مقاومت را انتخاب می‌کنیم
+    const latestSupport = supports.length > 0 ? supports[supports.length - 1] : null;
+    const latestResistance = resistances.length > 0 ? resistances[resistances.length - 1] : null;
+
+    // محاسبه timeBase مشابه updatePriceChart
+    const timeBase = Math.floor(Date.now() / 1000) - prices.length * secondsPerBar;
+
+    // محاسبه زمان انتهای نمودار برای گسترش خطوط
+    const chartEndTime = timeBase + (prices.length - 1) * secondsPerBar;
+
+    const newSeriesList = []; // لیست جدید سری‌های این فراخوانی
+
+    if (latestSupport) {
+        const levelTime = timeBase + latestSupport.index * secondsPerBar;
+        const series = chart.addLineSeries({
+            color: '#233dee', // آبی برای حمایت
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: false
+        });
+        // رسم خط از نقطه پیداشده تا انتهای نمودار
+        series.setData([
+            { time: levelTime, value: latestSupport.price },
+            { time: chartEndTime, value: latestSupport.price }
+        ]);
+        newSeriesList.push(series); // اضافه کردن به لیست جدید
+    }
+
+    if (latestResistance) {
+        const levelTime = timeBase + latestResistance.index * secondsPerBar;
+        const series = chart.addLineSeries({
+            color: '#e62e2e', // قرمز برای مقاومت
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: false
+        });
+        // رسم خط از نقطه پیداشده تا انتهای نمودار
+        series.setData([
+            { time: levelTime, value: latestResistance.price },
+            { time: chartEndTime, value: latestResistance.price }
+        ]);
+        newSeriesList.push(series); // اضافه کردن به لیست جدید
+    }
+
+    // ذخیره لیست جدید سری‌ها در Map مربوط به این نمودار
+    if (chart === priceChart) {
+        srSeriesMap.set('priceChart', newSeriesList);
+    }
+    // برای نمودارهای دیگه هم اگر نیاز بود این قسمت رو گسترش می‌دیم.
+}
+
+// ====== پایان اندیکاتور ======
+
+</script>
 </body>
 </html>
