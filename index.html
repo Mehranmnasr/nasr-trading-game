@@ -516,8 +516,8 @@
     let traderName = "پلیر";
     let initialBalance = 1000;
     let liquidityPool = 100000; // صندوق نقدینگی پیش‌فرض
-    const volatilityUp = 0.005;
-    const volatilityDown = 0.004;
+    const volatilityUp = 0.01;
+    const volatilityDown = 0.009;
     const cycleLength = 2;
     // --- متغیرهای جدید برای دامیننس و همبستگی ---
     let currentBitcoinDominance = 40; // شروع با 40%
@@ -729,10 +729,10 @@
       const phase = (currentStep % cycleLength) / cycleLength;
       let factor;
       if (phase < 0.5) {
-        factor = 1 + (phase * 1.2) * 0.05 + 0.002 * Math.sin(phase * Math.PI * 1);
+        factor = 1 + (phase * 1.2) * 0.052 + 0.002 * Math.sin(phase * Math.PI * 1);
       } else {
         const subPhase = (phase - 0.5) * 1.2;
-        factor = 1 - (subPhase * 0.049) + 0.002 * Math.sin(subPhase * Math.PI * 1);
+        factor = 1 - (subPhase * 0.047) + 0.002 * Math.sin(subPhase * Math.PI * 1);
       }
       return factor;
     }
@@ -1319,7 +1319,7 @@
       const bitcoin = coins.bitcoin;
       let bias = Math.random();
       let changePercent;
-      if (bias < 0.53) {
+      if (bias < 0.55) {
         changePercent = Math.random() * volatilityUp;
       } else {
         changePercent = -Math.random() * volatilityDown;
