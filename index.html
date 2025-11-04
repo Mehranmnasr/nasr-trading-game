@@ -555,7 +555,7 @@ function drawSupportResistanceLines(chart, prices, leftBars = 15, rightBars = 15
       <label for="tradePercent">٪ مقدار خرید/فروش:</label>
       <select id="tradePercent">
         <option value="10">10%</option>
-        <option value="30">30%</option>
+        <option value="20">20%</option>
         <option value="50">50%</option>
         <option value="100">100%</option>
       </select>
@@ -586,9 +586,11 @@ function drawSupportResistanceLines(chart, prices, leftBars = 15, rightBars = 15
       <p>سود/ضرر کل: $<span id="profitLoss">0</span></p>
     </div>
     <div class="info" style="margin-top: 10px;">
-      <button id="transferToWalletBtn" class="btn" style="background-color: #ffc107; color: black;">انتقال به کیف پول</button>
-      <button id="transferFromWalletBtn" class="btn" style="background-color: #6f42c1; color: white;">انتقال از کیف پول</button>
-    </div>
+  <button id="transferToWalletBtn" class="btn" 
+          style="background-color: #ffc107; color: black; padding: 10px 10px; font-size: 15px; border-radius: 5px;">انتقال به کیف پول📤</button>
+  <button id="transferFromWalletBtn" class="btn" 
+          style="background-color: #6f42c1; color: white; padding: 10px 10px; font-size: 15px; border-radius: 5px;">انتقال از کیف پول📥</button>
+</div>
     <div class="info" style="margin-top: 10px;">
       <button id="resetBtn" class="btn" style="background-color: #ff4d4d; color: white;">ریست بازی 🔄</button>
       <button id="burnBalanceBtn" class="btn" style="background-color: #ff6600; color: white; margin-right: 10px;">سوزاندن دلار 🔥</button>
@@ -2027,16 +2029,16 @@ function drawSupportResistanceLines(chart, prices, leftBars = 15, rightBars = 15
         updateCoinPercentages();
         updateDisplay();
         updateCalendarDisplay(virtualDay, virtualMonth, virtualYear);
-        document.getElementById("coinNameDisplay").innerText = "بیتکوین";
+        document.getElementById("coinNameDisplay").innerText = "بیتکوین ₿";
         // --- نمایش دامیننس در کارت اطلاعات بیتکوین بعد از ریست ---
         document.getElementById("dominanceDisplay").style.display = 'block';
         document.getElementById("bitcoinDominanceValue").innerText = currentBitcoinDominance.toFixed(2) + "%";
         // --- پایان بخش جدید ---
         // استفاده از تابع جدید برای فرمت عرضه کل
         document.getElementById("totalSupplyDisplay").innerText = formatTotalSupply(21000000);
-        document.getElementById("coinNameTab").innerText = "بیتکوین";
-        document.getElementById("coinEthereumTab").innerText = "اتریوم";
-        document.getElementById("coinBinanceTab").innerText = "بایننس کوین";
+        document.getElementById("coinNameTab").innerText = "بیتکوین ₿";
+        document.getElementById("coinEthereumTab").innerText = "اتریوم Ξ";
+        document.getElementById("coinBinanceTab").innerText = "بایننس کوین ⛓️";
         document.getElementById("personalCoinTab").style.display = "none";
         const initialMarketCapInMillions = (16000 * 21000000) / 1_000_000; // تغییر کرد
         document.getElementById("marketCap").innerText = formatMarketCap(initialMarketCapInMillions);
@@ -2185,9 +2187,9 @@ function drawSupportResistanceLines(chart, prices, leftBars = 15, rightBars = 15
       // --- پایان بخش جدید ---
       // استفاده از تابع جدید برای فرمت عرضه کل
       document.getElementById("totalSupplyDisplay").innerText = formatTotalSupply(coin.totalSupply);
-      document.getElementById("coinNameTab").innerText = "بیتکوین";
-      document.getElementById("coinEthereumTab").innerText = "اتریوم";
-      document.getElementById("coinBinanceTab").innerText = "بایننس کوین";
+      document.getElementById("coinNameTab").innerText = "بیتکوین ₿";
+      document.getElementById("coinEthereumTab").innerText = "اتریوم Ξ";
+      document.getElementById("coinBinanceTab").innerText = "بایننس کوین ⛓️";
       document.getElementById("traderName").innerText = traderName;
       const initialMarketCapInMillions = (coin.livePrice * coin.totalSupply) / 1_000_000;
       document.getElementById("marketCap").innerText = formatMarketCap(initialMarketCapInMillions);
