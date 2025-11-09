@@ -832,41 +832,48 @@
   if (!coins[coinKey]) return;
   currentCoin = coinKey;
   const newCoin = getCurrentCoinData(); // اطلاعات ارز جدید گرفته می‌شود
-  document.getElementById("coinNameDisplay").innerText = newCoin.name;
 
-  // --- این بخش باید درست بعد از گرفتن newCoin قرار بگیرد ---
+  // --- بروزرسانی اطلاعات نمایش داده شده در کارت Info ---
+  document.getElementById("coinNameDisplay").innerText = newCoin.name;
   const marketCapInMillions = (newCoin.livePrice * newCoin.totalSupply) / 1_000_000;
   document.getElementById("marketCap").innerText = formatMarketCap(marketCapInMillions);
+  document.getElementById("totalSupplyDisplay").innerText = formatTotalSupply(newCoin.totalSupply);
   // ---
 
+  // --- بروزرسانی نمایش دامیننس ---
   const dominanceDisplay = document.getElementById("dominanceDisplay");
   if (coinKey === 'bitcoin') {
     dominanceDisplay.style.display = 'block';
     document.getElementById("bitcoinDominanceValue").innerText = currentBitcoinDominance.toFixed(2) + "%";
   } else {
-    // مهم: اگر ارز جدید بیتکوین نبود، باید قسمت دامیننس بیتکوین مخفی شود
     dominanceDisplay.style.display = 'none';
   }
-  document.getElementById("totalSupplyDisplay").innerText = formatTotalSupply(newCoin.totalSupply);
-  // تأیید اینکه محاسبات درصد ارز نیز بروزرسانی شود
-  updateCoinPercentages();
+  // ---
 
-  // بقیه کد تابع بدون تغییر باقی می‌ماند
+  // --- بروزرسانی درصدها و ارتقاها ---
+  updateCoinPercentages();
+  updateUpgradeTabStatus();
+  updateUpgradeButtons();
+  // ---
+
+  // --- بروزرسانی نمایش عمومی و نمودار ---
   updateDisplay();
   updatePriceChart();
   const tfData = newCoin.timeframes[currentConfig.timeframe];
   rsiChart.data.labels = tfData.labels.slice(-currentConfig.maxPoints);
   rsiChart.data.datasets[0].data = tfData.rsiData.slice(-currentConfig.maxPoints);
   rsiChart.update();
+  // ---
 
+  // --- بروزرسانی تب فعال ---
   document.querySelectorAll('.coin-tab').forEach(tab => tab.classList.remove('active'));
   if (coinKey === 'bitcoin') document.getElementById('coinNameTab').classList.add('active');
   else if (coinKey === 'ethereum') document.getElementById('coinEthereumTab').classList.add('active');
   else if (coinKey === 'binance') document.getElementById('coinBinanceTab').classList.add('active');
   else if (personalCoinKey && coinKey === personalCoinKey) document.getElementById('personalCoinTab').classList.add('active');
+  // ---
+}
 
-  updateUpgradeTabStatus();
-    }
     function applyPriceChangeForCoin(coinKey, newPrice) {
       const coin = coins[coinKey];
       if (!coin) return;
@@ -1076,22 +1083,30 @@
       saveGame();
     }
 
-    function createMyCoin() {
+function createMyCoin() {
   const name = document.getElementById("coinNameInput").value.trim();
   const supply = parseFloat(document.getElementById("totalSupplyInput").value);
   const price = parseFloat(document.getElementById("listingPriceInput").value);
   const network = document.getElementById("networkSelect").value;
+
   if (!name || name.length < 2) { alert("لطفاً نام ارز را وارد کنید (حداقل 2 کاراکتر)."); return; }
   if (isNaN(supply) || supply < 1000) { alert("تعداد کل سکه‌ها باید حداقل 1000 باشد."); return; }
   if (isNaN(price) || price <= 0) { alert("قیمت لیست شدن باید بیشتر از 0 باشد."); return; }
   if (balance < 100) { alert("موجودی شما برای ساخت ارز کافی نیست! نیاز به 100 دلار دارید."); return; }
+
   personalCoinKey = 'mycoin_' + Date.now();
   const myCoins = supply * 0.8;
   const freeSupply = supply - myCoins;
+
   coins[personalCoinKey] = {
-    name, totalSupply: supply, livePrice: price,
-    coinAmount: myCoins, avgPrice: price, stopLossPrice: price * (1 - 5/100),
-    price24hAgo: price, cycleStep: 0,
+    name,
+    totalSupply: supply,
+    livePrice: price,
+    coinAmount: myCoins,
+    avgPrice: price,
+    stopLossPrice: price * (1 - 5/100),
+    price24hAgo: price,
+    cycleStep: 0,
     timeframes: {
       live:  createInitialTimeframeData(price),
       hour1: createInitialTimeframeData(price),
@@ -1101,76 +1116,102 @@
     },
     upgrades: []
   };
+
   balance -= 100;
+
   const pcTab = document.getElementById("personalCoinTab");
   pcTab.innerText = name;
   pcTab.style.display = "inline-block";
-  switchToCoin(personalCoinKey); // این تابع الان درست کار می‌کنه و مارکت کپ رو بروز می‌کنه
 
-  // --- این خطوط جدید هستند ---
-  // اطمینان از اینکه مارکت کپ ارز شخصی جدید در کارت اطلاعات نشان داده شود
-  const newCoin = getCurrentCoinData(); // اطلاعات ارز جدید (ارز شخصی) گرفته می‌شود
-  const marketCapInMillions = (newCoin.livePrice * newCoin.totalSupply) / 1_000_000;
-  document.getElementById("marketCap").innerText = formatMarketCap(marketCapInMillions);
-  // ---
+  // فراخوانی switchToCoin که تمام بروزرسانی‌های لازم را انجام می‌دهد
+  switchToCoin(personalCoinKey);
 
-  document.getElementById("totalSupplyDisplay").innerText = formatTotalSupply(supply);
-  updateCoinPercentages();
-  updateUpgradeTabStatus();
-  updateUpgradeButtons();
+  // توجه: خطوط زیر حذف شده‌اند زیرا تکراری هستند:
+  // const newCoin = getCurrentCoinData();
+  // const marketCapInMillions = (newCoin.livePrice * newCoin.totalSupply) / 1_000_000;
+  // document.getElementById("marketCap").innerText = formatMarketCap(marketCapInMillions);
+  // document.getElementById("totalSupplyDisplay").innerText = formatTotalSupply(supply);
+  // updateCoinPercentages();
+  // updateUpgradeTabStatus();
+  // updateUpgradeButtons();
+
   alert(`🎉 ارز "${name}" بر روی شبکه "${network}" با موفقیت ساخته شد!
 80% (${formatTotalSupply(myCoins)} سکه) به کیف پول شما اضافه شد.
 20% (${formatTotalSupply(freeSupply)} سکه) برای فروش در بازار آزاد قرار گرفت.`);
+
   document.getElementById("myCoinForm").style.display = "none";
+}
+/***********************
+ * Engine & RSI Pump   *
+ ***********************/
+function updateChartContent() {
+  if (isPriceFrozen) return;
+  if (virtualMonth !== lastUpdatedMonth) {
+    currentBitcoinDominance = calculateBitcoinDominance(virtualMonth);
+    lastUpdatedMonth = virtualMonth;
+    if (currentCoin === 'bitcoin') {
+      document.getElementById("bitcoinDominanceValue").innerText = currentBitcoinDominance.toFixed(2) + "%";
     }
-    /***********************
-     * Engine & RSI Pump   *
-     ***********************/
-    function updateChartContent() {
-      if (isPriceFrozen) return;
-      if (virtualMonth !== lastUpdatedMonth) {
-        currentBitcoinDominance = calculateBitcoinDominance(virtualMonth);
-        lastUpdatedMonth = virtualMonth;
-        if (currentCoin === 'bitcoin') {
-          document.getElementById("bitcoinDominanceValue").innerText = currentBitcoinDominance.toFixed(2) + "%";
-        }
-        console.log(`ماه ${virtualMonth} شروع شد. دامیننس بیتکوین: ${currentBitcoinDominance}%`);
+    console.log(`ماه ${virtualMonth} شروع شد. دامیننس بیتکوین: ${currentBitcoinDominance}%`);
+  }
+  const bitcoin = coins.bitcoin;
+  const bias = Math.random();
+  const changePercent = (bias < 0.55) ? Math.random() * volatilityUp : -Math.random() * volatilityDown;
+  let newBitcoinPrice = Math.max(bitcoin.livePrice * (1 + changePercent), 0.1);
+  const cyclicFactor = getCyclicFactor(bitcoin.cycleStep, cycleLength);
+  newBitcoinPrice *= cyclicFactor;
+  bitcoin.cycleStep = (bitcoin.cycleStep + 1) % (cycleLength * 2);
+  const dynamicCorrelation = calculateCorrelationFromDominance(currentBitcoinDominance);
+  const dynamicIndependentFactor = 1 - dynamicCorrelation;
+  for (const key in coins) {
+    const coin = coins[key];
+    const independentBias = Math.random();
+    const independentChangePercent = independentBias < 0.5 ? Math.random() * independentVolatility : -Math.random() * independentVolatility;
+    const finalChangePercent = (changePercent * dynamicCorrelation) + (independentChangePercent * dynamicIndependentFactor);
+    const newPrice = Math.max(coin.livePrice * (1 + finalChangePercent), 0.1);
+    applyPriceChangeForCoin(key, newPrice);
+  }
+  moveCounter++;
+  if (moveCounter >= 30) {
+    virtualDay++;
+    moveCounter = 0;
+    if (virtualDay > 30) {
+      virtualDay = 1;
+      virtualMonth++;
+      if (virtualMonth > 12) {
+        virtualMonth = 1;
+        virtualYear++;
       }
-      const bitcoin = coins.bitcoin;
-      const bias = Math.random();
-      const changePercent = (bias < 0.55) ? Math.random() * volatilityUp : -Math.random() * volatilityDown;
-      let newBitcoinPrice = Math.max(bitcoin.livePrice * (1 + changePercent), 0.1);
-      const cyclicFactor = getCyclicFactor(bitcoin.cycleStep, cycleLength);
-      newBitcoinPrice *= cyclicFactor;
-      bitcoin.cycleStep = (bitcoin.cycleStep + 1) % (cycleLength * 2);
-      const dynamicCorrelation = calculateCorrelationFromDominance(currentBitcoinDominance);
-      const dynamicIndependentFactor = 1 - dynamicCorrelation;
-      for (const key in coins) {
-        const coin = coins[key];
-        const independentBias = Math.random();
-        const independentChangePercent = independentBias < 0.5 ? Math.random() * independentVolatility : -Math.random() * independentVolatility;
-        const finalChangePercent = (changePercent * dynamicCorrelation) + (independentChangePercent * dynamicIndependentFactor);
-        const newPrice = Math.max(coin.livePrice * (1 + finalChangePercent), 0.1);
-        applyPriceChangeForCoin(key, newPrice);
-      }
-      moveCounter++;
-      if (moveCounter >= 30) {
-        virtualDay++;
-        moveCounter = 0;
-        if (virtualDay > 30) {
-          virtualDay = 1;
-          virtualMonth++;
-          if (virtualMonth > 12) {
-            virtualMonth = 1;
-            virtualYear++;
-          }
-          resetMonthlyHistory();
-        }
-        updateCalendarDisplay(virtualDay, virtualMonth, virtualYear);
-        coins.bitcoin.price24hAgo = coins.bitcoin.livePrice;
-        const marketCapInMillions = (coins.bitcoin.livePrice * coins.bitcoin.totalSupply) / 1_000_000;
-        document.getElementById("marketCap").innerText = formatMarketCap(marketCapInMillions);
-      }
+      resetMonthlyHistory();
+    }
+    updateCalendarDisplay(virtualDay, virtualMonth, virtualYear);
+    coins.bitcoin.price24hAgo = coins.bitcoin.livePrice;
+    // --- تغییر اینجا: بروزرسانی مارکت کپ ارز فعلی، نه فقط بیتکوین ---
+    // const marketCapInMillions = (coins.bitcoin.livePrice * coins.bitcoin.totalSupply) / 1_000_000;
+    // document.getElementById("marketCap").innerText = formatMarketCap(marketCapInMillions);
+    // --- بروزرسانی مارکت کپ ارز فعلی ---
+    const currentCoinData = getCurrentCoinData();
+    const marketCapInMillions = (currentCoinData.livePrice * currentCoinData.totalSupply) / 1_000_000;
+    document.getElementById("marketCap").innerText = formatMarketCap(marketCapInMillions);
+    // ---
+  }
+  // ... بقیه کد updateChartContent ...
+  if (!isPriceFrozen) {
+    updateDisplay();
+    updatePriceChart();
+    const activeTfData = getCurrentCoinData().timeframes[currentConfig.timeframe];
+    rsiChart.data.labels = activeTfData.labels.slice(-currentConfig.maxPoints);
+    rsiChart.data.datasets[0].data = activeTfData.rsiData.slice(-currentConfig.maxPoints);
+    rsiChart.update();
+    const coin = getCurrentCoinData();
+    const tfData = coin.timeframes[currentConfig.timeframe];
+    const smaData = tfData.priceData.map((p, i) => ({
+      time: Math.floor(Date.now() / 1000) - (tfData.priceData.length - i) * 60,
+      value: tfData.smaData[i]
+    })).filter(d => d.value !== null);
+    smaSeries.setData(smaData.length ? smaData.slice(-currentConfig.maxPoints) : []);
+ }
+
       // RSI-driven pump/dump
       if (!isPriceFrozen) {
         for (const coinKey in coins) {
