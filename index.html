@@ -377,7 +377,7 @@
     let isPriceFrozen = false;
     let traderName = "پلیر";
     let initialBalance = 1000;
-    let liquidityPool = 100000;
+    let liquidityPool = 100000; // این مقدار در زمان تغییر ارز فعلی بروزرسانی می‌شود
     let currentBitcoinDominance = 40;
     let lastUpdatedMonth = virtualMonth;
     let currentConfig = timeFrameConfigs.live;
@@ -456,7 +456,8 @@
           hour4: createInitialTimeframeData(16000),
           day1:  createInitialTimeframeData(16000),
           week1: createInitialTimeframeData(16000)
-        }
+        },
+        liquidityPool: 1_000_000_000 // مقدار اولیه صندوق
       },
       ethereum: {
         name: "اتریوم", totalSupply: 120000000, livePrice: 1100,
@@ -468,7 +469,8 @@
           hour4: createInitialTimeframeData(1100),
           day1:  createInitialTimeframeData(1100),
           week1: createInitialTimeframeData(1100)
-        }
+        },
+        liquidityPool: 600_000_000 // مقدار اولیه صندوق
       },
       binance: {
         name: "بایننس کوین", totalSupply: 140000000, livePrice: 200,
@@ -480,7 +482,8 @@
           hour4: createInitialTimeframeData(200),
           day1:  createInitialTimeframeData(200),
           week1: createInitialTimeframeData(200)
-        }
+        },
+        liquidityPool: 300_000_000 // مقدار اولیه صندوق
       }
     };
     function getCurrentCoinData() { return coins[currentCoin]; }
@@ -678,7 +681,8 @@
       const percentRemaining = 100 - percentBought;
       document.getElementById("percentBought").innerText = percentBought.toFixed(4) + "%";
       document.getElementById("percentRemaining").innerText = percentRemaining.toFixed(4) + "%";
-      document.getElementById("liquidityPoolValue").innerText = liquidityPool.toLocaleString();
+      // بروزرسانی نمایش موجودی صندوق نقدینگی ارز فعلی
+      document.getElementById("liquidityPoolValue").innerText = coin.liquidityPool.toLocaleString();
     }
     function updateUpgradeButtons() {
       if (currentCoin !== personalCoinKey) return;
@@ -697,7 +701,6 @@
         // حذف event listener قبلی (اگر وجود داشته باشد) برای جلوگیری از انباشت
         button.replaceWith(button.cloneNode(true)); // راه حل ساده برای حذف event listener
         const newButton = document.getElementById(buttonId); // گرفتن دکمه جدید
-
         if (upgrades.includes(upgradeName)) {
           newButton.disabled = true;
           newButton.textContent = '✅';
@@ -749,7 +752,7 @@
       const userLevelInfo = getUserLevel(pnlPercent);
       document.getElementById("userLevel").innerText = userLevelInfo.level;
       document.getElementById("userStars").innerText = userLevelInfo.stars;
-      updateCoinPercentages();
+      updateCoinPercentages(); // این تابع الان موجودی صندوق فعلی را نیز نمایش می‌دهد
       updateWalletDisplay();
       updateUpgradeButtons();
     }
@@ -759,7 +762,7 @@
     function saveGame() {
       const data = {
         balance, virtualDay, virtualMonth, virtualYear, moveCounter,
-        coins, currentCoin, personalCoinKey, isPriceFrozen, liquidityPool,
+        coins, currentCoin, personalCoinKey, isPriceFrozen, liquidityPool, // liquidityPool قدیمی ذخیره می‌شود، اما برای بارگذاری مهم نیست
         traderName, initialBalance, limitOrders, wallet,
         currentBitcoinDominance, lastUpdatedMonth,
         personalCoinUpgrades: coins[personalCoinKey]?.upgrades || [],
@@ -776,11 +779,12 @@
       virtualMonth = data.virtualMonth || 1;
       virtualYear = data.virtualYear || 2022;
       moveCounter = data.moveCounter || 0;
-      coins = data.coins;
+      coins = data.coins; // این شامل صندوق‌های نقدینگی ذخیره شده می‌شود
       currentCoin = data.currentCoin || 'bitcoin';
       personalCoinKey = data.personalCoinKey || null;
       isPriceFrozen = data.isPriceFrozen || false;
-      liquidityPool = data.liquidityPool || 100000;
+      // liquidityPool قدیمی را نادیده می‌گیریم، چون الان هر ارز دارای صندوق خود است
+      // liquidityPool = data.liquidityPool || 100000;
       traderName = data.traderName || "پلیر";
       initialBalance = data.initialBalance || 1000;
       limitOrders = data.limitOrders || [];
@@ -824,6 +828,9 @@
       document.getElementById("marketCap").innerText = formatMarketCap(marketCapInMillions);
       updateUpgradeTabStatus();
       updateUpgradeButtons();
+      // بروزرسانی liquidityPool فعلی پس از بارگذاری
+      const currentCoinData = getCurrentCoinData();
+      liquidityPool = currentCoinData.liquidityPool;
     }
     /***********************
      * Orders & Trading    *
@@ -832,14 +839,14 @@
   if (!coins[coinKey]) return;
   currentCoin = coinKey;
   const newCoin = getCurrentCoinData(); // اطلاعات ارز جدید گرفته می‌شود
-
+  // بروزرسانی liquidityPool فعلی
+  liquidityPool = newCoin.liquidityPool;
   // --- بروزرسانی اطلاعات نمایش داده شده در کارت Info ---
   document.getElementById("coinNameDisplay").innerText = newCoin.name;
   const marketCapInMillions = (newCoin.livePrice * newCoin.totalSupply) / 1_000_000;
   document.getElementById("marketCap").innerText = formatMarketCap(marketCapInMillions);
   document.getElementById("totalSupplyDisplay").innerText = formatTotalSupply(newCoin.totalSupply);
   // ---
-
   // --- بروزرسانی نمایش دامیننس ---
   const dominanceDisplay = document.getElementById("dominanceDisplay");
   if (coinKey === 'bitcoin') {
@@ -849,13 +856,11 @@
     dominanceDisplay.style.display = 'none';
   }
   // ---
-
   // --- بروزرسانی درصدها و ارتقاها ---
-  updateCoinPercentages();
+  updateCoinPercentages(); // این تابع الان موجودی صندوق فعلی را نیز نمایش می‌دهد
   updateUpgradeTabStatus();
   updateUpgradeButtons();
   // ---
-
   // --- بروزرسانی نمایش عمومی و نمودار ---
   updateDisplay();
   updatePriceChart();
@@ -864,7 +869,6 @@
   rsiChart.data.datasets[0].data = tfData.rsiData.slice(-currentConfig.maxPoints);
   rsiChart.update();
   // ---
-
   // --- بروزرسانی تب فعال ---
   document.querySelectorAll('.coin-tab').forEach(tab => tab.classList.remove('active'));
   if (coinKey === 'bitcoin') document.getElementById('coinNameTab').classList.add('active');
@@ -873,7 +877,6 @@
   else if (personalCoinKey && coinKey === personalCoinKey) document.getElementById('personalCoinTab').classList.add('active');
   // ---
 }
-
     function applyPriceChangeForCoin(coinKey, newPrice) {
       const coin = coins[coinKey];
       if (!coin) return;
@@ -885,11 +888,12 @@
       liveTf.barData.push(newPrice - (liveTf.priceData.length > 1 ? liveTf.priceData[liveTf.priceData.length - 2] : newPrice));
       liveTf.rsiData = calculateRSI(liveTf.priceData, rsiPeriod);
       liveTf.smaData = calculateSMA(liveTf.priceData, smaPeriod);
-      if (coinKey === 'bitcoin' && moveCounter > 0) {
-        const prevPrice = liveTf.priceData[liveTf.priceData.length - 2] || coin.livePrice;
-        const priceChangeFactor = newPrice / prevPrice;
-        liquidityPool *= priceChangeFactor;
-      }
+      // اگر قیمت بیتکوین تغییر کند، صندوق آن نیز تغییر می‌کند (اگر این رفتار مورد نظر باشد)
+      // if (coinKey === 'bitcoin' && moveCounter > 0) {
+      //   const prevPrice = liveTf.priceData[liveTf.priceData.length - 2] || coin.livePrice;
+      //   const priceChangeFactor = newPrice / prevPrice;
+      //   coin.liquidityPool *= priceChangeFactor; // تغییر صندوق مربوطه
+      // }
       updateHigherTimeframesForCoin(coinKey, newPrice);
       for (const tf of ['live', 'hour1', 'hour4', 'day1', 'week1']) {
         const data = coin.timeframes[tf];
@@ -1050,77 +1054,50 @@
      * Upgrades & My Coin  *
      ***********************/
      function depositToPool(amount) {
+        const coin = getCurrentCoinData();
         if (balance < amount) {
             alert("موجودی شما برای واریز به صندوق کافی نیست.");
             return;
         }
         balance -= amount;
-        liquidityPool += amount;
+        coin.liquidityPool += amount; // واریز به صندوق ارز فعلی
         updateDisplay(); // برای بروزرسانی نمایش موجودی و نقدینگی
         saveGame(); // ذخیره تغییرات
-        alert(`مبلغ $${amount.toLocaleString()} با موفقیت به صندوق نقدینگی اضافه شد.`);
+        alert(`مبلغ $${amount.toLocaleString()} با موفقیت به صندوق نقدینگی ${coin.name} اضافه شد.`);
     }
-
 function withdrawFromPool(amount) {
-
-    if (liquidityPool < amount) {
-
-        alert("موجودی صندوق نقدینگی برای برداشت کافی نیست.");
-
-        return;
-
-    }
-
-    liquidityPool -= amount;
-
-    balance += amount;
-
-    // --- بخش جدید ---
-
-    // اعمال دامپ 5% به قیمت ارز فعلی
-
-    const coin = getCurrentCoinData();
-
-    const newPrice = coin.livePrice * 0.95; // کاهش 5%
-
-    applyPriceChangeForCoin(currentCoin, newPrice);
-
-    // اگر ارز فعلی بیتکوین باشد، قیمت آن را نیز به روز کن
-
-    if (currentCoin === 'bitcoin') {
-
-        coins.bitcoin.livePrice = newPrice;
-
-    }
-
-    console.log(`📉 کاهش نقدینگی ارز! برداشت $${amount.toLocaleString()} باعث دامپ 5% قیمت ${coin.name} شد.`);
-
-    // --- پایان بخش جدید ---
-
-    updateDisplay(); // برای بروزرسانی نمایش موجودی و نقدینگی و قیمت
-
-    updatePriceChart(); // بروزرسانی نمودار قیمت
-
-    const activeTfData = coin.timeframes[currentConfig.timeframe];
-
-    rsiChart.data.labels = activeTfData.labels.slice(-currentConfig.maxPoints);
-
-    rsiChart.data.datasets[0].data = activeTfData.rsiData.slice(-currentConfig.maxPoints);
-
-    rsiChart.update();
-
-    saveGame(); // ذخیره تغییرات
-
-    alert(`مبلغ $${amount.toLocaleString()} با موفقیت از صندوق نقدینگی برداشت شد
+    const coin = getCurrentCoinData();
+    if (coin.liquidityPool < amount) {
+        alert("موجودی صندوق نقدینگی این ارز برای برداشت کافی نیست.");
+        return;
+    }
+    coin.liquidityPool -= amount;
+    balance += amount;
+    // --- بخش جدید ---
+    // اعمال دامپ 5% به قیمت ارز فعلی
+    const newPrice = coin.livePrice * 0.95; // کاهش 5%
+    applyPriceChangeForCoin(currentCoin, newPrice);
+    // اگر ارز فعلی بیتکوین باشد، قیمت آن را نیز به روز کن
+    if (currentCoin === 'bitcoin') {
+        coins.bitcoin.livePrice = newPrice;
+    }
+    console.log(`📉 کاهش نقدینگی ارز! برداشت $${amount.toLocaleString()} باعث دامپ 5% قیمت ${coin.name} شد.`);
+    // --- پایان بخش جدید ---
+    updateDisplay(); // برای بروزرسانی نمایش موجودی و نقدینگی و قیمت
+    updatePriceChart(); // بروزرسانی نمودار قیمت
+    const activeTfData = coin.timeframes[currentConfig.timeframe];
+    rsiChart.data.labels = activeTfData.labels.slice(-currentConfig.maxPoints);
+    rsiChart.data.datasets[0].data = activeTfData.rsiData.slice(-currentConfig.maxPoints);
+    rsiChart.update();
+    saveGame(); // ذخیره تغییرات
+    alert(`مبلغ $${amount.toLocaleString()} با موفقیت از صندوق نقدینگی ${coin.name} برداشت شد
     دامپ 5% به علت کاهش نقدینگی .`);
 }
-     
     function showUpgradeCard() {
       const upgradeCard = document.getElementById('upgradeCard');
       if (upgradeCard.style.display === 'none') { upgradeCard.style.display = 'block'; showOverlay(); }
       else { upgradeCard.style.display = 'none'; hideOverlay(); }
     }
-
     function purchaseUpgrade(upgradeName) {
       if (currentCoin !== personalCoinKey) { alert("ابتدا ارز شخصی خود را انتخاب کنید."); return; }
       if (balance < 1000) { alert("موجودی شما برای خرید این ارتقاء کافی نیست! نیاز به 1000 دلار دارید."); return; }
@@ -1148,22 +1125,18 @@ function withdrawFromPool(amount) {
       updateUpgradeButtons(); // برای بروزرسانی وضعیت دکمه پس از خرید
       saveGame();
     }
-
 function createMyCoin() {
   const name = document.getElementById("coinNameInput").value.trim();
   const supply = parseFloat(document.getElementById("totalSupplyInput").value);
   const price = parseFloat(document.getElementById("listingPriceInput").value);
   const network = document.getElementById("networkSelect").value;
-
   if (!name || name.length < 2) { alert("لطفاً نام ارز را وارد کنید (حداقل 2 کاراکتر)."); return; }
   if (isNaN(supply) || supply < 1000) { alert("تعداد کل سکه‌ها باید حداقل 1000 باشد."); return; }
   if (isNaN(price) || price <= 0) { alert("قیمت لیست شدن باید بیشتر از 0 باشد."); return; }
   if (balance < 100) { alert("موجودی شما برای ساخت ارز کافی نیست! نیاز به 100 دلار دارید."); return; }
-
   personalCoinKey = 'mycoin_' + Date.now();
   const myCoins = supply * 0.8;
   const freeSupply = supply - myCoins;
-
   coins[personalCoinKey] = {
     name,
     totalSupply: supply,
@@ -1180,31 +1153,18 @@ function createMyCoin() {
       day1:  createInitialTimeframeData(price),
       week1: createInitialTimeframeData(price)
     },
-    upgrades: []
+    upgrades: [],
+    liquidityPool: 1000 // مقدار اولیه صندوق ارز شخصی
   };
-
   balance -= 100;
-
   const pcTab = document.getElementById("personalCoinTab");
   pcTab.innerText = name;
   pcTab.style.display = "inline-block";
-
   // فراخوانی switchToCoin که تمام بروزرسانی‌های لازم را انجام می‌دهد
   switchToCoin(personalCoinKey);
-
-  // توجه: خطوط زیر حذف شده‌اند زیرا تکراری هستند:
-  // const newCoin = getCurrentCoinData();
-  // const marketCapInMillions = (newCoin.livePrice * newCoin.totalSupply) / 1_000_000;
-  // document.getElementById("marketCap").innerText = formatMarketCap(marketCapInMillions);
-  // document.getElementById("totalSupplyDisplay").innerText = formatTotalSupply(supply);
-  // updateCoinPercentages();
-  // updateUpgradeTabStatus();
-  // updateUpgradeButtons();
-
   alert(`🎉 ارز "${name}" بر روی شبکه "${network}" با موفقیت ساخته شد!
 80% (${formatTotalSupply(myCoins)} سکه) به کیف پول شما اضافه شد.
 20% (${formatTotalSupply(freeSupply)} سکه) برای فروش در بازار آزاد قرار گرفت.`);
-
   document.getElementById("myCoinForm").style.display = "none";
 }
 /***********************
@@ -1219,6 +1179,15 @@ function updateChartContent() {
       document.getElementById("bitcoinDominanceValue").innerText = currentBitcoinDominance.toFixed(2) + "%";
     }
     console.log(`ماه ${virtualMonth} شروع شد. دامیننس بیتکوین: ${currentBitcoinDominance}%`);
+    // --- افزایش 1000 دلاری به تمام صندوق‌های نقدینگی در ابتدای هر ماه ---
+    for (const coinKey in coins) {
+        coins[coinKey].liquidityPool += 1000;
+        console.log(`صندوق نقدینگی ${coins[coinKey].name} با 1000 دلار افزایش یافت.`);
+    }
+    // اگر ارز فعلی تغییر کرده بود، liquidityPool محلی را نیز بروزرسانی کن
+    const currentCoinData = getCurrentCoinData();
+    liquidityPool = currentCoinData.liquidityPool;
+    // ---
   }
   const bitcoin = coins.bitcoin;
   const bias = Math.random();
@@ -1238,7 +1207,7 @@ function updateChartContent() {
     applyPriceChangeForCoin(key, newPrice);
   }
   moveCounter++;
-  if (moveCounter >= 30) {
+  if (moveCounter >= 24) {
     virtualDay++;
     moveCounter = 0;
     if (virtualDay > 30) {
@@ -1252,9 +1221,6 @@ function updateChartContent() {
     }
     updateCalendarDisplay(virtualDay, virtualMonth, virtualYear);
     coins.bitcoin.price24hAgo = coins.bitcoin.livePrice;
-    // --- تغییر اینجا: بروزرسانی مارکت کپ ارز فعلی، نه فقط بیتکوین ---
-    // const marketCapInMillions = (coins.bitcoin.livePrice * coins.bitcoin.totalSupply) / 1_000_000;
-    // document.getElementById("marketCap").innerText = formatMarketCap(marketCapInMillions);
     // --- بروزرسانی مارکت کپ ارز فعلی ---
     const currentCoinData = getCurrentCoinData();
     const marketCapInMillions = (currentCoinData.livePrice * currentCoinData.totalSupply) / 1_000_000;
@@ -1277,7 +1243,6 @@ function updateChartContent() {
     })).filter(d => d.value !== null);
     smaSeries.setData(smaData.length ? smaData.slice(-currentConfig.maxPoints) : []);
  }
-
       // RSI-driven pump/dump
       if (!isPriceFrozen) {
         for (const coinKey in coins) {
@@ -1564,7 +1529,8 @@ function updateChartContent() {
             hour4: createInitialTimeframeData(16000),
             day1:  createInitialTimeframeData(16000),
             week1: createInitialTimeframeData(16000)
-          }
+          },
+          liquidityPool: 1_000_000_000 // مقدار اولیه صندوق
         },
         ethereum: {
           name: "اتریوم", totalSupply: 120000000, livePrice: 1100,
@@ -1575,7 +1541,8 @@ function updateChartContent() {
             hour4: createInitialTimeframeData(1100),
             day1:  createInitialTimeframeData(1100),
             week1: createInitialTimeframeData(1100)
-          }
+          },
+          liquidityPool: 600_000_000 // مقدار اولیه صندوق
         },
         binance: {
           name: "بایننس کوین", totalSupply: 140000000, livePrice: 200,
@@ -1586,7 +1553,8 @@ function updateChartContent() {
             hour4: createInitialTimeframeData(200),
             day1:  createInitialTimeframeData(200),
             week1: createInitialTimeframeData(200)
-          }
+          },
+          liquidityPool: 300_000_000 // مقدار اولیه صندوق
         }
       };
       currentCoin = 'bitcoin';
