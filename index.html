@@ -253,7 +253,7 @@
       <small>برای بستن، کلیک کنید</small>
     </div>
   </div>
-  <span class="timeframe-tab active" data-frame="live">30 دقیقه</span>
+  <span class="timeframe-tab active" data-frame="live">1 دقیقه</span>
   <span class="timeframe-tab" data-frame="hour1">1 ساعته</span>
   <span class="timeframe-tab" data-frame="hour4">4 ساعته</span>
   <span class="timeframe-tab" data-frame="day1">روزانه</span>
@@ -362,7 +362,7 @@
     };
     const volatilityUp = 0.01;
     const volatilityDown = 0.009;
-    const cycleLength = 2;
+    const cycleLength = 4;
     const minDominance = 40;
     const maxDominance = 70;
     const minCorrelation = 0.30;
@@ -1191,7 +1191,7 @@ function updateChartContent() {
   }
   const bitcoin = coins.bitcoin;
   const bias = Math.random();
-  const changePercent = (bias < 0.55) ? Math.random() * volatilityUp : -Math.random() * volatilityDown;
+  const changePercent = (bias < 0.53) ? Math.random() * volatilityUp : -Math.random() * volatilityDown;
   let newBitcoinPrice = Math.max(bitcoin.livePrice * (1 + changePercent), 0.1);
   const cyclicFactor = getCyclicFactor(bitcoin.cycleStep, cycleLength);
   newBitcoinPrice *= cyclicFactor;
@@ -1258,11 +1258,11 @@ function updateChartContent() {
           let newPriceForPumpDump = coin.livePrice;
           let message = '';
           if (lastRsiValue <= 25) {
-            newPriceForPumpDump = coin.livePrice * 1.01;
-            message = `📈 RSI ${coin.name} به ${lastRsiValue.toFixed(2)} رسید! پامپ 2% اعمال شد.`;
+            newPriceForPumpDump = coin.livePrice * 1.005;
+            message = `📈 RSI ${coin.name} به ${lastRsiValue.toFixed(2)} رسید! پامپ 0.5% اعمال شد.`;
           } else if (lastRsiValue >= 75) {
-            newPriceForPumpDump = coin.livePrice * 0.99;
-            message = `📉 RSI ${coin.name} به ${lastRsiValue.toFixed(2)} رسید! دامپ 2% اعمال شد.`;
+            newPriceForPumpDump = coin.livePrice * 0.995;
+            message = `📉 RSI ${coin.name} به ${lastRsiValue.toFixed(2)} رسید! دامپ 0.5% اعمال شد.`;
           }
           if (newPriceForPumpDump !== coin.livePrice) {
             newPriceForPumpDump = Math.max(newPriceForPumpDump, 0.1);
