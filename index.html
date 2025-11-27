@@ -878,9 +878,15 @@
   // ---
 }
     function applyPriceChangeForCoin(coinKey, newPrice) {
-      const coin = coins[coinKey];
-      if (!coin) return;
-      coin.livePrice = newPrice;
+  const coin = coins[coinKey];
+  if (!coin) return;
+  
+  // جلوگیری از پامپ مجدد برای ارزهای شخصی
+  if (coinKey === personalCoinKey && coin.hasPumped && newPrice > coin.livePrice * 1.5) {
+    console.log(`پامپ اولیه برای ${coin.name} قبلاً انجام شده است.`);
+    return;
+  }
+  coin.livePrice = newPrice;
       const liveTf = coin.timeframes.live;
       const timeLabel = liveTf.labels.length ? Number(liveTf.labels[liveTf.labels.length - 1]) + 1 : 1;
       liveTf.labels.push(timeLabel);
@@ -1125,46 +1131,83 @@ function withdrawFromPool(amount) {
       updateUpgradeButtons(); // برای بروزرسانی وضعیت دکمه پس از خرید
       saveGame();
     }
+    
+    function createInitialTimeframeDataWithPump(listingPrice) {
+    const initialPrice = listingPrice * 0.9; // 10% پایین‌تر از قیمت لیست
+    const pumpedPrice = listingPrice; // قیمت پس از پامپ (قیمت لیست)
+    
+    return {
+        labels: [1, 2],
+        priceData: [initialPrice, pumpedPrice],
+        barData: [0, pumpedPrice - initialPrice],
+        rsiData: calculateRSI([initialPrice, pumpedPrice], rsiPeriod),
+        smaData: calculateSMA([initialPrice, pumpedPrice], smaPeriod)
+    };
+}
+    
 function createMyCoin() {
   const name = document.getElementById("coinNameInput").value.trim();
   const supply = parseFloat(document.getElementById("totalSupplyInput").value);
-  const price = parseFloat(document.getElementById("listingPriceInput").value);
+  const listingPrice = parseFloat(document.getElementById("listingPriceInput").value);
   const network = document.getElementById("networkSelect").value;
+  
   if (!name || name.length < 2) { alert("لطفاً نام ارز را وارد کنید (حداقل 2 کاراکتر)."); return; }
   if (isNaN(supply) || supply < 1000) { alert("تعداد کل سکه‌ها باید حداقل 1000 باشد."); return; }
-  if (isNaN(price) || price <= 0) { alert("قیمت لیست شدن باید بیشتر از 0 باشد."); return; }
+  if (isNaN(listingPrice) || listingPrice <= 0) { alert("قیمت لیست شدن باید بیشتر از 0 باشد."); return; }
   if (balance < 100) { alert("موجودی شما برای ساخت ارز کافی نیست! نیاز به 100 دلار دارید."); return; }
+  
   personalCoinKey = 'mycoin_' + Date.now();
   const myCoins = supply * 0.8;
   const freeSupply = supply - myCoins;
+  
+  // محاسبه قیمت اولیه (10% کمتر از قیمت لیست)
+  const initialPrice = listingPrice * 0.9;
+  
   coins[personalCoinKey] = {
     name,
     totalSupply: supply,
-    livePrice: price,
+    livePrice: initialPrice, // قیمت اولیه 10% کمتر
     coinAmount: myCoins,
-    avgPrice: price,
-    stopLossPrice: price * (1 - 5/100),
-    price24hAgo: price,
+    avgPrice: initialPrice, // میانگین قیمت خرید برابر با قیمت اولیه
+    stopLossPrice: initialPrice * (1 - 5/100),
+    price24hAgo: initialPrice,
     cycleStep: 0,
     timeframes: {
-      live:  createInitialTimeframeData(price),
-      hour1: createInitialTimeframeData(price),
-      hour4: createInitialTimeframeData(price),
-      day1:  createInitialTimeframeData(price),
-      week1: createInitialTimeframeData(price)
+      live:  createInitialTimeframeDataWithPump(listingPrice),
+      hour1: createInitialTimeframeDataWithPump(listingPrice),
+      hour4: createInitialTimeframeDataWithPump(listingPrice),
+      day1:  createInitialTimeframeDataWithPump(listingPrice),
+      week1: createInitialTimeframeDataWithPump(listingPrice)
     },
     upgrades: [],
-    liquidityPool: 1000 // مقدار اولیه صندوق ارز شخصی
+    liquidityPool: 1000,
+    listingPrice: listingPrice, // ذخیره قیمت لیست برای استفاده بعدی
+    hasPumped: false // فلگ برای بررسی اینکه آیا پامپ اولیه انجام شده یا نه
   };
+  
   balance -= 100;
+  
+  // پامپ 100% به قیمت لیست پس از ایجاد ارز
+  setTimeout(() => {
+    if (coins[personalCoinKey]) {
+      applyPriceChangeForCoin(personalCoinKey, listingPrice);
+      coins[personalCoinKey].hasPumped = true;
+      alert(`🚀 ارز "${name}" با موفقیت لیست شد! قیمت از $${initialPrice.toFixed(2)} به $${listingPrice.toFixed(2)} پامپ شد (10% رشد)!`);
+    }
+  }, 1000);
+  
   const pcTab = document.getElementById("personalCoinTab");
   pcTab.innerText = name;
   pcTab.style.display = "inline-block";
-  // فراخوانی switchToCoin که تمام بروزرسانی‌های لازم را انجام می‌دهد
+  
   switchToCoin(personalCoinKey);
+  
   alert(`🎉 ارز "${name}" بر روی شبکه "${network}" با موفقیت ساخته شد!
 80% (${formatTotalSupply(myCoins)} سکه) به کیف پول شما اضافه شد.
-20% (${formatTotalSupply(freeSupply)} سکه) برای فروش در بازار آزاد قرار گرفت.`);
+20% (${formatTotalSupply(freeSupply)} سکه) برای فروش در بازار آزاد قرار گرفت.
+
+قیمت کشف اولیه لیست ($${initialPrice.toFixed(2)}) تنظیم شد و سپس به قیمت هیجان لیست ($${listingPrice.toFixed(2)}) پامپ خواهد شد.`);
+  
   document.getElementById("myCoinForm").style.display = "none";
 }
 /***********************
