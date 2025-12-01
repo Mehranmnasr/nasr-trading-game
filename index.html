@@ -169,6 +169,8 @@
       <p>مارکت کپ: <span id="marketCap">336.0B</span></p>
       <p>تعداد عرضه کل: <span id="totalSupplyDisplay">21.00M</span></p>
       <p id="dominanceDisplay" style="display:none;">دامیننس بیتکوین: <span id="bitcoinDominanceValue">40%</span></p>
+      <!-- اضافه شده: نمایش دامیننس ارزهای غیر بیتکوین -->
+      <p id="altDominanceDisplay" style="display:none;">دامیننس: <span id="altDominanceValue">0.00%</span></p>
       <p>میزان سکه های ارز بصورت درصد: <span id="percentRemaining">100%</span></p>
       <p>میزان سکه های خریده شده ارز بصورت درصد: <span id="percentBought">0%</span></p>
       <hr style="margin:10px 0;">
@@ -470,7 +472,8 @@
           day1:  createInitialTimeframeData(1100),
           week1: createInitialTimeframeData(1100)
         },
-        liquidityPool: 600_000_000 // مقدار اولیه صندوق
+        liquidityPool: 600_000_000, // مقدار اولیه صندوق
+        dominance: 11 // دامیننس اولیه 11%
       },
       binance: {
         name: "بایننس کوین", totalSupply: 140000000, livePrice: 200,
@@ -483,7 +486,8 @@
           day1:  createInitialTimeframeData(200),
           week1: createInitialTimeframeData(200)
         },
-        liquidityPool: 300_000_000 // مقدار اولیه صندوق
+        liquidityPool: 300_000_000, // مقدار اولیه صندوق
+        dominance: 4 // دامیننس اولیه 4%
       }
     };
     function getCurrentCoinData() { return coins[currentCoin]; }
@@ -755,6 +759,15 @@
       updateCoinPercentages(); // این تابع الان موجودی صندوق فعلی را نیز نمایش می‌دهد
       updateWalletDisplay();
       updateUpgradeButtons();
+      // --- بروزرسانی نمایش دامیننس ارز فعلی در کارت اطلاعات ---
+      if (currentCoin !== 'bitcoin' && coins[currentCoin]?.dominance !== undefined) {
+         const altDominanceDisplay = document.getElementById("altDominanceDisplay");
+         const altDominanceValue = document.getElementById("altDominanceValue");
+         if (altDominanceDisplay.style.display === 'block') { // فقط اگر نمایش دامیننس فعال بود
+            altDominanceValue.innerText = coins[currentCoin].dominance.toFixed(2) + "%";
+         }
+      }
+      // ---
     }
     /***********************
      * Persistence         *
@@ -797,6 +810,25 @@
       }
       tradeHistory = Array.isArray(data.tradeHistory) ? data.tradeHistory : [];
       renderHistory();
+
+      // --- بارگذاری یا تنظیم پیش‌فرض دامیننس ---
+      for (const key in coins) {
+        if (key !== 'bitcoin' && coins[key].dominance === undefined) {
+            let baseDominance = 0.1; // پیش‌فرض
+            if (key === 'ethereum') baseDominance = 11;
+            else if (key === 'binance') baseDominance = 4;
+            // برای ارزهای شخصی بارگذاری شده نیز باید مقدار پایه را در نظر گرفت
+            // اگر در داده ذخیره شده بود، آن را بارگذاری می‌کنیم، در غیر این صورت پیش‌فرض
+            if (data.coins && data.coins[key] && data.coins[key].dominance !== undefined) {
+                 coins[key].dominance = data.coins[key].dominance;
+            } else {
+                 coins[key].dominance = baseDominance;
+            }
+        }
+      }
+      // ---
+
+
       const freezeBtn = document.getElementById('freezePriceBtn');
       freezeBtn.innerText = isPriceFrozen ? '▶️' : '⏸️';
       freezeBtn.title = isPriceFrozen ? 'قیمت فریز شده — پامپ/دامپ غیرفعال' : 'فریز قیمت (جلوگیری از پامپ/دامپ)';
@@ -812,8 +844,9 @@
         marketCapInMillions = (coins.bitcoin.livePrice * coins.bitcoin.totalSupply) / 1_000_000;
         document.getElementById("dominanceDisplay").style.display = 'block';
         document.getElementById("bitcoinDominanceValue").innerText = currentBitcoinDominance.toFixed(2) + "%";
+        document.getElementById("altDominanceDisplay").style.display = 'none'; // مطمئن شوید که دامیننس جایگزین مخفی است
       } else {
-        document.getElementById("dominanceDisplay").style.display = 'none';
+        document.getElementById("dominanceDisplay").style.display = 'none'; // مطمئن شوید که دامیننس بیتکوین مخفی است
         if (currentCoin === 'ethereum') {
           document.getElementById('coinEthereumTab').classList.add('active');
           marketCapInMillions = (coins.ethereum.livePrice * coins.ethereum.totalSupply) / 1_000_000;
@@ -823,6 +856,15 @@
         } else if (personalCoinKey && currentCoin === personalCoinKey) {
           document.getElementById('personalCoinTab').classList.add('active');
           marketCapInMillions = (coins[personalCoinKey].livePrice * coins[personalCoinKey].totalSupply) / 1_000_000;
+        }
+        // نمایش دامیننس ارز فعلی غیر بیتکوین
+        if (currentCoin === 'ethereum' || currentCoin === 'binance' || (personalCoinKey && currentCoin === personalCoinKey)) {
+            const altDominanceDisplay = document.getElementById("altDominanceDisplay");
+            altDominanceDisplay.style.display = 'block';
+            const coinDominance = coins[currentCoin].dominance; // مقدار دامیننس ذخیره شده را بخوانید
+            document.getElementById("altDominanceValue").innerText = coinDominance.toFixed(2) + "%";
+        } else {
+            document.getElementById("altDominanceDisplay").style.display = 'none';
         }
       }
       document.getElementById("marketCap").innerText = formatMarketCap(marketCapInMillions);
@@ -849,11 +891,20 @@
   // ---
   // --- بروزرسانی نمایش دامیننس ---
   const dominanceDisplay = document.getElementById("dominanceDisplay");
+  const altDominanceDisplay = document.getElementById("altDominanceDisplay");
   if (coinKey === 'bitcoin') {
     dominanceDisplay.style.display = 'block';
+    altDominanceDisplay.style.display = 'none'; // مطمئن شوید که دامیننس جایگزین مخفی است
     document.getElementById("bitcoinDominanceValue").innerText = currentBitcoinDominance.toFixed(2) + "%";
   } else {
-    dominanceDisplay.style.display = 'none';
+    dominanceDisplay.style.display = 'none'; // مطمئن شوید که دامیننس بیتکوین مخفی است
+    if (coinKey === 'ethereum' || coinKey === 'binance' || (personalCoinKey && coinKey === personalCoinKey)) {
+      altDominanceDisplay.style.display = 'block';
+      const coinDominance = coins[coinKey].dominance; // مقدار دامیننس ذخیره شده را بخوانید
+      document.getElementById("altDominanceValue").innerText = coinDominance.toFixed(2) + "%";
+    } else {
+      altDominanceDisplay.style.display = 'none';
+    }
   }
   // ---
   // --- بروزرسانی درصدها و ارتقاها ---
@@ -880,7 +931,6 @@
     function applyPriceChangeForCoin(coinKey, newPrice) {
   const coin = coins[coinKey];
   if (!coin) return;
-  
   // جلوگیری از پامپ مجدد برای ارزهای شخصی
   if (coinKey === personalCoinKey && coin.hasPumped && newPrice > coin.livePrice * 1.5) {
     console.log(`پامپ اولیه برای ${coin.name} قبلاً انجام شده است.`);
@@ -979,7 +1029,7 @@
               const newPumpedPrice = newPrice * 1.05;
               applyPriceChangeForCoin(coinKey, newPumpedPrice);
               if (coinKey === 'bitcoin') coins.bitcoin.livePrice = newPumpedPrice;
-              alert(`🔥 خرید بزرگ (${(coinsBought / coin.totalSupply * 100).toFixed(2)}%) روی ${coin.name}!`);
+              alert(`🔥 خرید بزرگ (${(coinsBought / coin.totalSupply * 100).toFixed(2)}%)!`);
             } else {
               if (coinKey === currentCoin) { updateDisplay(); updateCoinPercentages(); }
             }
@@ -999,7 +1049,7 @@
               const newDumpedPrice = newPrice * 0.95;
               applyPriceChangeForCoin(coinKey, newDumpedPrice);
               if (coinKey === 'bitcoin') coins.bitcoin.livePrice = newDumpedPrice;
-              alert(`📉 فروش بزرگ (${(coinsToSell / coin.totalSupply * 100).toFixed(2)}%) روی ${coin.name}!`);
+              alert(`📉 فروش بزرگ (${(coinsToSell / coin.totalSupply * 100).toFixed(2)}%)!`);
             } else {
               if (coinKey === currentCoin) { updateDisplay(); updateCoinPercentages(); }
             }
@@ -1131,11 +1181,9 @@ function withdrawFromPool(amount) {
       updateUpgradeButtons(); // برای بروزرسانی وضعیت دکمه پس از خرید
       saveGame();
     }
-    
     function createInitialTimeframeDataWithPump(listingPrice) {
     const initialPrice = listingPrice * 0.9; // 10% پایین‌تر از قیمت لیست
     const pumpedPrice = listingPrice; // قیمت پس از پامپ (قیمت لیست)
-    
     return {
         labels: [1, 2],
         priceData: [initialPrice, pumpedPrice],
@@ -1144,25 +1192,20 @@ function withdrawFromPool(amount) {
         smaData: calculateSMA([initialPrice, pumpedPrice], smaPeriod)
     };
 }
-    
 function createMyCoin() {
   const name = document.getElementById("coinNameInput").value.trim();
   const supply = parseFloat(document.getElementById("totalSupplyInput").value);
   const listingPrice = parseFloat(document.getElementById("listingPriceInput").value);
   const network = document.getElementById("networkSelect").value;
-  
   if (!name || name.length < 2) { alert("لطفاً نام ارز را وارد کنید (حداقل 2 کاراکتر)."); return; }
   if (isNaN(supply) || supply < 1000) { alert("تعداد کل سکه‌ها باید حداقل 1000 باشد."); return; }
   if (isNaN(listingPrice) || listingPrice <= 0) { alert("قیمت لیست شدن باید بیشتر از 0 باشد."); return; }
   if (balance < 100) { alert("موجودی شما برای ساخت ارز کافی نیست! نیاز به 100 دلار دارید."); return; }
-  
   personalCoinKey = 'mycoin_' + Date.now();
   const myCoins = supply * 0.8;
   const freeSupply = supply - myCoins;
-  
   // محاسبه قیمت اولیه (10% کمتر از قیمت لیست)
   const initialPrice = listingPrice * 0.9;
-  
   coins[personalCoinKey] = {
     name,
     totalSupply: supply,
@@ -1181,12 +1224,11 @@ function createMyCoin() {
     },
     upgrades: [],
     liquidityPool: 1000,
+    dominance: 0.1, // دامیننس اولیه 0.1%
     listingPrice: listingPrice, // ذخیره قیمت لیست برای استفاده بعدی
     hasPumped: false // فلگ برای بررسی اینکه آیا پامپ اولیه انجام شده یا نه
   };
-  
   balance -= 100;
-  
   // پامپ 100% به قیمت لیست پس از ایجاد ارز
   setTimeout(() => {
     if (coins[personalCoinKey]) {
@@ -1195,19 +1237,14 @@ function createMyCoin() {
       alert(`🚀 ارز "${name}" با موفقیت لیست شد! قیمت از $${initialPrice.toFixed(2)} به $${listingPrice.toFixed(2)} پامپ شد (10% رشد)!`);
     }
   }, 1000);
-  
   const pcTab = document.getElementById("personalCoinTab");
   pcTab.innerText = name;
   pcTab.style.display = "inline-block";
-  
   switchToCoin(personalCoinKey);
-  
   alert(`🎉 ارز "${name}" بر روی شبکه "${network}" با موفقیت ساخته شد!
 80% (${formatTotalSupply(myCoins)} سکه) به کیف پول شما اضافه شد.
 20% (${formatTotalSupply(freeSupply)} سکه) برای فروش در بازار آزاد قرار گرفت.
-
 قیمت کشف اولیه لیست ($${initialPrice.toFixed(2)}) تنظیم شد و سپس به قیمت هیجان لیست ($${listingPrice.toFixed(2)}) پامپ خواهد شد.`);
-  
   document.getElementById("myCoinForm").style.display = "none";
 }
 /***********************
@@ -1232,6 +1269,26 @@ function updateChartContent() {
     liquidityPool = currentCoinData.liquidityPool;
     // ---
   }
+
+  // --- محاسبه دامیننس بر اساس صندوق نقدینگی ---
+  for (const key in coins) {
+    if (key !== 'bitcoin') { // فقط برای اتریوم، بایننس و ارزهای شخصی
+      const coin = coins[key];
+      // محاسبه: هر 10,000,000 واحد از صندوق، 0.1% دامیننس اضافه می‌کند
+      // فرمول: (صندوق فعلی / 10,000,000) * 0.1 + دامیننس پایه
+      let baseDominance = 0;
+      if (key === 'ethereum') baseDominance = 11;
+      else if (key === 'binance') baseDominance = 4;
+      else if (personalCoinKey && key === personalCoinKey) baseDominance = 0.1;
+      // برای ارزهای شخصی دیگر، مقدار دامیننس پایه را می‌توان از ویژگی ذخیره شده یا مقدار پیش‌فرض 0.1 در نظر گرفت
+      else baseDominance = 0.1; // پیش‌فرض برای احتمال وجود ارزهای شخصی دیگر
+
+      const calculatedDominance = (coin.liquidityPool / 10_000_000) * 0.1 + baseDominance;
+      coin.dominance = calculatedDominance; // مقدار جدید را ذخیره کنید
+    }
+  }
+  // ---
+
   const bitcoin = coins.bitcoin;
   const bias = Math.random();
   const changePercent = (bias < 0.53) ? Math.random() * volatilityUp : -Math.random() * volatilityDown;
@@ -1585,7 +1642,8 @@ function updateChartContent() {
             day1:  createInitialTimeframeData(1100),
             week1: createInitialTimeframeData(1100)
           },
-          liquidityPool: 600_000_000 // مقدار اولیه صندوق
+          liquidityPool: 600_000_000, // مقدار اولیه صندوق
+          dominance: 11 // دامیننس اولیه 11%
         },
         binance: {
           name: "بایننس کوین", totalSupply: 140000000, livePrice: 200,
@@ -1597,7 +1655,8 @@ function updateChartContent() {
             day1:  createInitialTimeframeData(200),
             week1: createInitialTimeframeData(200)
           },
-          liquidityPool: 300_000_000 // مقدار اولیه صندوق
+          liquidityPool: 300_000_000, // مقدار اولیه صندوق
+          dominance: 4 // دامیننس اولیه 4%
         }
       };
       currentCoin = 'bitcoin';
@@ -1611,6 +1670,7 @@ function updateChartContent() {
       document.getElementById("coinNameDisplay").innerText = "بیتکوین ₿";
       document.getElementById("dominanceDisplay").style.display = 'block';
       document.getElementById("bitcoinDominanceValue").innerText = currentBitcoinDominance.toFixed(2) + "%";
+      document.getElementById("altDominanceDisplay").style.display = 'none'; // مطمئن شوید که دامیننس جایگزین مخفی است
       document.getElementById("totalSupplyDisplay").innerText = formatTotalSupply(21000000);
       document.getElementById("coinNameTab").innerText = "بیتکوین ₿";
       document.getElementById("coinEthereumTab").innerText = "اتریوم Ξ";
@@ -1665,8 +1725,13 @@ function updateChartContent() {
       if (currentCoin === 'bitcoin') {
         document.getElementById("dominanceDisplay").style.display = 'block';
         document.getElementById("bitcoinDominanceValue").innerText = currentBitcoinDominance.toFixed(2) + "%";
+        document.getElementById("altDominanceDisplay").style.display = 'none'; // مطمئن شوید که دامیننس جایگزین مخفی است
       } else {
-        document.getElementById("dominanceDisplay").style.display = 'none';
+        document.getElementById("dominanceDisplay").style.display = 'none'; // مطمئن شوید که دامیننس بیتکوین مخفی است
+        if (currentCoin === 'ethereum' || currentCoin === 'binance' || (personalCoinKey && currentCoin === personalCoinKey)) {
+          document.getElementById("altDominanceDisplay").style.display = 'block';
+          document.getElementById("altDominanceValue").innerText = coins[currentCoin].dominance.toFixed(2) + "%";
+        }
       }
       document.getElementById("totalSupplyDisplay").innerText = formatTotalSupply(coin.totalSupply);
       document.getElementById("coinNameTab").innerText = "بیتکوین ₿";
