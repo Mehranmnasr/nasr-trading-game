@@ -157,6 +157,30 @@
       border-bottom: 1px solid #ddd; padding: 6px; text-align: center;
       font-size: 13px; color: black;
     }
+    /* استایل برای تب "درباره بازی" */
+    #aboutTab {
+      background-color: #607d8b; /* یک رنگ خنثی یا متفاوت انتخاب شده است */
+    }
+    #aboutTab.active {
+      background-color: #455a64; /* رنگ تیره‌تر برای حالت فعال */
+    }
+
+    /* استایل برای کارت "درباره بازی"، مشابه دیگر کارت‌ها */
+    #aboutCard {
+      display: none;
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      color: black;
+      padding: 20px;
+      border-radius: 8px;
+      width: 320px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      z-index: 1000;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -345,6 +369,17 @@
         </thead>
         <tbody id="historyList"></tbody>
       </table>
+      <small style="color:black;">برای بستن، کلیک کنید</small>
+    </div>
+    <!-- قسمت HTML برای تب و کارت "درباره بازی" -->
+    <div class="info" style="margin-top:10px;">
+      <span class="tab" id="aboutTab"> درباره بازی ℹ️</span>
+    </div>
+    <div id="aboutCard">
+      <h3 style="color:black;">درباره بازی</h3>
+      <p><strong>سازنده:</strong> MehranNasr and Ai</p>
+      <p><strong>تاریخ ساخت:</strong> 1404/3</p>
+      <p><strong>گروه راهنمای بازی:</strong> <a href="https://ble.ir/join/8Ld6FnL5K4" target="_blank">ble.ir/join/8Ld6FnL5K4</a></p>
       <small style="color:black;">برای بستن، کلیک کنید</small>
     </div>
   </div>
@@ -810,7 +845,6 @@
       }
       tradeHistory = Array.isArray(data.tradeHistory) ? data.tradeHistory : [];
       renderHistory();
-
       // --- بارگذاری یا تنظیم پیش‌فرض دامیننس ---
       for (const key in coins) {
         if (key !== 'bitcoin' && coins[key].dominance === undefined) {
@@ -827,8 +861,6 @@
         }
       }
       // ---
-
-
       const freezeBtn = document.getElementById('freezePriceBtn');
       freezeBtn.innerText = isPriceFrozen ? '▶️' : '⏸️';
       freezeBtn.title = isPriceFrozen ? 'قیمت فریز شده — پامپ/دامپ غیرفعال' : 'فریز قیمت (جلوگیری از پامپ/دامپ)';
@@ -1269,7 +1301,6 @@ function updateChartContent() {
     liquidityPool = currentCoinData.liquidityPool;
     // ---
   }
-
   // --- محاسبه دامیننس بر اساس صندوق نقدینگی ---
   for (const key in coins) {
     if (key !== 'bitcoin') { // فقط برای اتریوم، بایننس و ارزهای شخصی
@@ -1282,13 +1313,11 @@ function updateChartContent() {
       else if (personalCoinKey && key === personalCoinKey) baseDominance = 0.1;
       // برای ارزهای شخصی دیگر، مقدار دامیننس پایه را می‌توان از ویژگی ذخیره شده یا مقدار پیش‌فرض 0.1 در نظر گرفت
       else baseDominance = 0.1; // پیش‌فرض برای احتمال وجود ارزهای شخصی دیگر
-
       const calculatedDominance = (coin.liquidityPool / 10_000_000) * 0.1 + baseDominance;
       coin.dominance = calculatedDominance; // مقدار جدید را ذخیره کنید
     }
   }
   // ---
-
   const bitcoin = coins.bitcoin;
   const bias = Math.random();
   const changePercent = (bias < 0.53) ? Math.random() * volatilityUp : -Math.random() * volatilityDown;
@@ -1480,11 +1509,32 @@ function updateChartContent() {
       } else { historyCard.style.display = 'none'; hideOverlay(); }
     });
     document.getElementById('historyCard').addEventListener('click', () => { document.getElementById('historyCard').style.display = 'none'; hideOverlay(); });
+    // تب و کارت "درباره بازی"
+    document.getElementById('aboutTab').addEventListener('click', () => {
+      const aboutCard = document.getElementById('aboutCard');
+      if (aboutCard.style.display === 'none' || aboutCard.style.display === '') {
+        aboutCard.style.display = 'block'; showOverlay();
+      } else {
+        aboutCard.style.display = 'none'; hideOverlay();
+      }
+    });
+
+    // اضافه کردن event listener برای بستن کارت "درباره بازی" با کلیک روی آن (مثلاً روی فضای خالی یا متن)
+    document.getElementById('aboutCard').addEventListener('click', (e) => {
+        // جلوگیری از بسته شدن کارت هنگام کلیک روی لینک
+        if (e.target.tagName === 'A') {
+            e.stopPropagation(); // جلوگیری از رسیدن رویداد به عنصر والد (کارت)
+            return; // از اجرای بقیه کد جلوگیری می‌کند
+        }
+        // اگر روی خود کارت یا عناصر غیر از لینک کلیک شود، کارت بسته می‌شود
+        document.getElementById('aboutCard').style.display = 'none';
+        hideOverlay();
+    });
     // Overlay global click
     document.addEventListener('click', (e) => {
       if (e.target.id === 'overlay') {
         hideOverlay();
-        ['infoCard','myCoinForm','secretForm','profileCard','walletCard','upgradeCard','historyCard'].forEach(id => {
+        ['infoCard','myCoinForm','secretForm','profileCard','walletCard','upgradeCard','historyCard', 'aboutCard'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.style.display = 'none';
         });
