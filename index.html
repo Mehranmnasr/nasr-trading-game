@@ -1569,64 +1569,98 @@ function updateChartContent() {
         document.getElementById('secretForm').style.display = 'none';
       } else { alert('کد یا مقدار وارد شده اشتباهه 😕'); }
     });
-    document.getElementById('orderType').addEventListener('change', function() {
-      const limitInput = document.getElementById('limitPriceInput');
-      limitInput.style.display = (this.value === 'limit') ? 'block' : 'none';
-    });
+    document.getElementById("orderType").addEventListener("change", function() {
+    const limitInput = document.getElementById('limitPriceInput');
+    const limitPriceField = document.getElementById('limitPrice'); // گرفتن فیلد ورودی قیمت لیمیت
+    limitInput.style.display = (this.value === 'limit') ? 'block' : 'none';
+    if (this.value === 'market') { // اگر نوع اوردر مارکت انتخاب شد
+        limitPriceField.value = ''; // مقدار فیلد قیمت لیمیت را خالی کن
+        limitPriceField.disabled = true; // فیلد را غیرفعال کن
+        // --- خط جدید: پاک کردن اوردرهای لیمیت کاربر فعلی ---
+        // این کار فقط اوردرهای *ثبت شده توسط این کاربر* برای ارز فعلی را پاک می‌کند
+        // این اوردرها قبل از تغییر نوع اوردر به "مارکت" ثبت شده بودند
+        const currentCoinKey = currentCoin; // ارز فعلی
+        const initialLength = limitOrders.length;
+        // فیلتر کردن اوردرها: فقط اوردرهایی که مربوط به ارز فعلی هستند را حذف کن
+        limitOrders = limitOrders.filter(order => order.coinKey !== currentCoinKey);
+        if (limitOrders.length < initialLength) {
+            console.log(`اخطار: ${initialLength - limitOrders.length} اوردر لیمیت از صف حذف شد زیرا نوع اوردر به "مارکت" تغییر کرد.`);
+            // اگر بخواهید به کاربر نیز اطلاع دهید:
+            // alert(`اخطار: اوردرهای لیمیت قبلی شما برای ${getCurrentCoinData().name} لغو شدند زیرا نوع اوردر به "مارکت" تغییر کرد.`);
+        }
+        // ---
+    } else { // اگر نوع اوردر لیمیت انتخاب شود
+        limitPriceField.disabled = false; // فیلد را فعال کن
+    }
+});
     document.getElementById("buyBtn").addEventListener("click", function() {
-      const coin = getCurrentCoinData();
-      const orderType = document.getElementById("orderType").value;
-      const percent = parseInt(document.getElementById("tradePercent").value);
-      const amountToSpend = balance * (percent / 100);
-      if (orderType === 'market') {
+    const coin = getCurrentCoinData();
+    // نوع اوردر را *همین الان* بخوان
+    const orderType = document.getElementById("orderType").value;
+    const percent = parseInt(document.getElementById("tradePercent").value);
+    const amountToSpend = balance * (percent / 100);
+
+    if (orderType === 'market') {
+        // --- فقط کد مارکت ---
         const totalBoughtByUser = coin.coinAmount + (wallet[currentCoin]?.amount || 0);
         if (balance <= 0 || totalBoughtByUser >= coin.totalSupply) {
-          if (totalBoughtByUser >= coin.totalSupply) alert("❌ تمام سکه‌ها توسط شما (در صرافی یا کیف پول) خریداری شده‌اند! دیگر امکان خرید وجود ندارد.");
-          return;
+            if (totalBoughtByUser >= coin.totalSupply) alert("❌ تمام سکه‌ها توسط شما (در صرافی یا کیف پول) خریداری شده‌اند! دیگر امکان خرید وجود ندارد.");
+            return;
         }
         const coinsBought = amountToSpend / coin.livePrice;
         const maxCoinsAllowedBySupply = coin.totalSupply - (coin.coinAmount + (wallet[currentCoin]?.amount || 0));
         if (coinsBought > maxCoinsAllowedBySupply) {
-          if (maxCoinsAllowedBySupply <= 0) { alert("❌ تمام سکه‌ها توسط شما خریداری شده‌اند!"); return; }
-          const newAmount = maxCoinsAllowedBySupply * coin.livePrice;
-          balance -= newAmount;
-          coin.coinAmount += maxCoinsAllowedBySupply;
-          coin.avgPrice = coin.coinAmount > 0
-            ? ((coin.avgPrice * (coin.coinAmount - maxCoinsAllowedBySupply)) + (coin.livePrice * maxCoinsAllowedBySupply)) / coin.coinAmount
-            : coin.livePrice;
-          alert(`⚠️ فقط ${maxCoinsAllowedBySupply.toFixed(4)} سکه دیگر می‌توانید بخرید. خرید به این مقدار محدود شد.`);
+            if (maxCoinsAllowedBySupply <= 0) { alert("❌ تمام سکه‌ها توسط شما خریداری شده‌اند!"); return; }
+            const newAmount = maxCoinsAllowedBySupply * coin.livePrice;
+            balance -= newAmount;
+            coin.coinAmount += maxCoinsAllowedBySupply;
+            coin.avgPrice = coin.coinAmount > 0
+                ? ((coin.avgPrice * (coin.coinAmount - maxCoinsAllowedBySupply)) + (coin.livePrice * maxCoinsAllowedBySupply)) / coin.coinAmount
+                : coin.livePrice;
+            alert(`⚠️ فقط ${maxCoinsAllowedBySupply.toFixed(4)} سکه دیگر می‌توانید بخرید. خرید به این مقدار محدود شد.`);
         } else {
-          balance -= amountToSpend;
-          coin.coinAmount += coinsBought;
-          coin.avgPrice = coin.coinAmount > 0
-            ? ((coin.avgPrice * (coin.coinAmount - coinsBought)) + (coin.livePrice * coinsBought)) / coin.coinAmount
-            : coin.livePrice;
+            balance -= amountToSpend;
+            coin.coinAmount += coinsBought;
+            coin.avgPrice = coin.coinAmount > 0
+                ? ((coin.avgPrice * (coin.coinAmount - coinsBought)) + (coin.livePrice * coinsBought)) / coin.coinAmount
+                : coin.livePrice;
         }
         const stopLossPercent = parseInt(document.getElementById("stopLossPercent").value);
         coin.stopLossPrice = coin.avgPrice * (1 - stopLossPercent / 100);
         const onePercentSupply = coin.totalSupply * 0.01;
         if (!isPriceFrozen && coinsBought >= onePercentSupply) {
-          const newPrice = coin.livePrice * 1.03;
-          applyPriceChangeForCoin(currentCoin, newPrice);
-          if (currentCoin === 'bitcoin') coins.bitcoin.livePrice = newPrice;
-          alert(`🔥 پامپ! خرید بزرگ (${(coinsBought / coin.totalSupply * 100).toFixed(2)}%) باعث رشد  3% قیمت شد !`);
+            const newPrice = coin.livePrice * 1.03;
+            applyPriceChangeForCoin(currentCoin, newPrice);
+            if (currentCoin === 'bitcoin') coins.bitcoin.livePrice = newPrice;
+            alert(`🔥 پامپ! خرید بزرگ (${(coinsBought / coin.totalSupply * 100).toFixed(2)}%) باعث رشد  3% قیمت شد !`);
         } else {
-          updateDisplay();
+            updateDisplay();
         }
-      } else if (orderType === 'limit') {
+        // --- پایان کد مارکت ---
+    } else if (orderType === 'limit') { // --- فقط اگر نوع اوردر 'limit' بود ---
+        // --- فقط کد لیمیت ---
+        // limitPrice را *همین الان* و فقط در اینجا بخوان
         const limitPrice = parseFloat(document.getElementById("limitPrice").value);
-        if (isNaN(limitPrice) || limitPrice <= 0) { alert("لطفاً قیمت لیمیت معتبر وارد کنید."); return; }
+        if (isNaN(limitPrice) || limitPrice <= 0) {
+            alert("لطفاً قیمت لیمیت معتبر وارد کنید.");
+            return;
+        }
         limitOrders.push({ type: 'buy', price: limitPrice, amount: amountToSpend, coinKey: currentCoin });
         alert(`✅ اوردر خرید لیمیت به قیمت $${limitPrice} ثبت شد.`);
-      }
-      saveGame();
-    });
+        // --- پایان کد لیمیت ---
+    }
+    // فقط یک بار saveGame را فراخوانی می‌کنیم
+    saveGame();
+});
     document.getElementById("sellBtn").addEventListener("click", function() {
-      const coin = getCurrentCoinData();
-      const orderType = document.getElementById("orderType").value;
-      const percent = parseInt(document.getElementById("tradePercent").value);
-      const coinsToSell = coin.coinAmount * (percent / 100);
-      if (orderType === 'market') {
+    const coin = getCurrentCoinData();
+    // نوع اوردر را *همین الان* بخوان
+    const orderType = document.getElementById("orderType").value;
+    const percent = parseInt(document.getElementById("tradePercent").value);
+    const coinsToSell = coin.coinAmount * (percent / 100);
+
+    if (orderType === 'market') {
+        // --- فقط کد مارکت ---
         if (coin.coinAmount <= 0) return;
         const onePercentSupply = coin.totalSupply * 0.01;
         const sellValue = coinsToSell * coin.livePrice;
@@ -1636,22 +1670,30 @@ function updateChartContent() {
         if (coin.coinAmount <= 0) { coin.coinAmount = 0; coin.avgPrice = 0; }
         addTradeHistoryRecord(currentCoin, realizedPnl);
         if (!isPriceFrozen && coinsToSell >= onePercentSupply) {
-          const newPrice = coin.livePrice * 0.98;
-          applyPriceChangeForCoin(currentCoin, newPrice);
-          if (currentCoin === 'bitcoin') coins.bitcoin.livePrice = newPrice;
-          alert(`📉 دامپ! فروش بزرگ (${(coinsToSell / coin.totalSupply * 100).toFixed(2)}%) باعث سقوط 3% قیمت شد!`);
+            const newPrice = coin.livePrice * 0.98;
+            applyPriceChangeForCoin(currentCoin, newPrice);
+            if (currentCoin === 'bitcoin') coins.bitcoin.livePrice = newPrice;
+            alert(`📉 دامپ! فروش بزرگ (${(coinsToSell / coin.totalSupply * 100).toFixed(2)}%) باعث سقوط 3% قیمت شد!`);
         } else {
-          updateDisplay();
+            updateDisplay();
         }
-      } else if (orderType === 'limit') {
+        // --- پایان کد مارکت ---
+    } else if (orderType === 'limit') { // --- فقط اگر نوع اوردر 'limit' بود ---
+        // --- فقط کد لیمیت ---
+        // limitPrice را *همین الان* و فقط در اینجا بخوان
         const limitPrice = parseFloat(document.getElementById("limitPrice").value);
-        if (isNaN(limitPrice) || limitPrice <= 0) { alert("لطفاً قیمت لیمیت معتبر وارد کنید."); return; }
+        if (isNaN(limitPrice) || limitPrice <= 0) {
+            alert("لطفاً قیمت لیمیت معتبر وارد کنید.");
+            return;
+        }
         const amountToSell = coinsToSell * coin.livePrice;
         limitOrders.push({ type: 'sell', price: limitPrice, amount: amountToSell, coinKey: currentCoin });
         alert(`✅ اوردر فروش لیمیت به قیمت $${limitPrice} ثبت شد.`);
-      }
-      saveGame();
-    });
+        // --- پایان کد لیمیت ---
+    }
+    // فقط یک بار saveGame را فراخوانی می‌کنیم
+    saveGame();
+});
     document.getElementById('freezePriceBtn').addEventListener('click', function() {
       isPriceFrozen = !isPriceFrozen;
       this.innerText = isPriceFrozen ? '▶️' : '⏸️';
