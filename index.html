@@ -397,8 +397,8 @@
       day1:  { maxPoints: 140, interval: 5000, timeframe: 'day1' },
       week1: { maxPoints: 150, interval: 6000, timeframe: 'week1' }
     };
-    const volatilityUp = 0.01;
-    const volatilityDown = 0.009;
+    const volatilityUp = 0.011;
+    const volatilityDown = 0.01;
     const cycleLength = 4;
     const minDominance = 40;
     const maxDominance = 70;
@@ -1320,7 +1320,7 @@ function updateChartContent() {
   // ---
   const bitcoin = coins.bitcoin;
   const bias = Math.random();
-  const changePercent = (bias < 0.53) ? Math.random() * volatilityUp : -Math.random() * volatilityDown;
+  const changePercent = (bias < 0.51) ? Math.random() * volatilityUp : -Math.random() * volatilityDown;
   let newBitcoinPrice = Math.max(bitcoin.livePrice * (1 + changePercent), 0.1);
   const cyclicFactor = getCyclicFactor(bitcoin.cycleStep, cycleLength);
   newBitcoinPrice *= cyclicFactor;
@@ -1629,10 +1629,10 @@ function updateChartContent() {
         coin.stopLossPrice = coin.avgPrice * (1 - stopLossPercent / 100);
         const onePercentSupply = coin.totalSupply * 0.01;
         if (!isPriceFrozen && coinsBought >= onePercentSupply) {
-            const newPrice = coin.livePrice * 1.03;
+            const newPrice = coin.livePrice * 1.02;
             applyPriceChangeForCoin(currentCoin, newPrice);
             if (currentCoin === 'bitcoin') coins.bitcoin.livePrice = newPrice;
-            alert(`🔥 پامپ! خرید بزرگ (${(coinsBought / coin.totalSupply * 100).toFixed(2)}%) باعث رشد  3% قیمت شد !`);
+            alert(`🔥 پامپ! خرید بزرگ (${(coinsBought / coin.totalSupply * 100).toFixed(2)}%) باعث رشد  2% قیمت شد !`);
         } else {
             updateDisplay();
         }
@@ -1670,7 +1670,7 @@ function updateChartContent() {
         if (coin.coinAmount <= 0) { coin.coinAmount = 0; coin.avgPrice = 0; }
         addTradeHistoryRecord(currentCoin, realizedPnl);
         if (!isPriceFrozen && coinsToSell >= onePercentSupply) {
-            const newPrice = coin.livePrice * 0.98;
+            const newPrice = coin.livePrice * 0.99;
             applyPriceChangeForCoin(currentCoin, newPrice);
             if (currentCoin === 'bitcoin') coins.bitcoin.livePrice = newPrice;
             alert(`📉 دامپ! فروش بزرگ (${(coinsToSell / coin.totalSupply * 100).toFixed(2)}%) باعث سقوط 3% قیمت شد!`);
