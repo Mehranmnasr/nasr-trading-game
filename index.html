@@ -212,6 +212,7 @@ cursor: pointer;
 <p id="altDominanceDisplay" style="display:none;">دامیننس: <span id="altDominanceValue">0.00%</span></p>
 <p>میزان سکه های ارز بصورت درصد: <span id="percentRemaining">100%</span></p>
 <p>میزان سکه های خریده شده ارز بصورت درصد: <span id="percentBought">0%</span></p>
+<p>بالاترین قیمت تاریخی (ATH): $<span id="allTimeHighDisplay">16000</span></p>
 <hr style="margin:10px 0;">
 <h4>صندوق نقدینگی</h4>
 <p>موجودی صندوق: $<span id="liquidityPoolValue">100000</span></p>
@@ -563,6 +564,7 @@ smaData: calculateSMA([price], smaPeriod)
 let coins = {
 bitcoin: {
 name: "بیتکوین", totalSupply: 21000000, livePrice: 16000,
+allTimeHigh: 16000,
 coinAmount: 0, avgPrice: 0, stopLossPrice: 0,
 price24hAgo: 16000, cycleStep: 0,
 timeframes: {
@@ -576,6 +578,7 @@ liquidityPool: 1_000_000_000 // مقدار اولیه صندوق
 },
 ethereum: {
 name: "اتریوم", totalSupply: 120000000, livePrice: 1100,
+allTimeHigh: 1100,
 coinAmount: 0, avgPrice: 0, stopLossPrice: 0,
 price24hAgo: 1100, cycleStep: 0,
 timeframes: {
@@ -590,6 +593,7 @@ dominance: 11 // دامیننس اولیه 11%
 },
 binance: {
 name: "بایننس کوین", totalSupply: 140000000, livePrice: 200,
+allTimeHigh: 200,
 coinAmount: 0, avgPrice: 0, stopLossPrice: 0,
 price24hAgo: 200, cycleStep: 0,
 timeframes: {
@@ -1009,7 +1013,9 @@ pnlElement.style.color = pnlPercent >= 0 ? 'green' : 'red';
 const userLevelInfo = getUserLevel(pnlPercent);
 document.getElementById("userLevel").innerText = userLevelInfo.level;
 document.getElementById("userStars").innerText = userLevelInfo.stars;
-updateCoinPercentages(); // این تابع الان موجودی صندوق فعلی را نیز نمایش می‌دهد
+updateCoinPercentages();
+document.getElementById("allTimeHighDisplay").innerText = (coin.allTimeHigh || coin.livePrice).toFixed(2);
+ // این تابع الان موجودی صندوق فعلی را نیز نمایش می‌دهد
 updateWalletDisplay();
 updateUpgradeButtons();
 // --- بروزرسانی نمایش دامیننس ارز فعلی در کارت اطلاعات ---
@@ -1039,6 +1045,12 @@ npcData
 localStorage.setItem("nasrTradingGameSave", JSON.stringify(data));
 }
 function loadGame() {
+
+for (const key in coins) {
+      if (coins[key].allTimeHigh === undefined) {
+          coins[key].allTimeHigh = coins[key].livePrice || 1;
+      }
+  }
 const saved = localStorage.getItem("nasrTradingGameSave");
 if (!saved) return;
 const data = JSON.parse(saved);
@@ -1148,6 +1160,7 @@ document.getElementById("coinNameDisplay").innerText = newCoin.name;
 const marketCapInMillions = (newCoin.livePrice * newCoin.totalSupply) / 1_000_000;
 document.getElementById("marketCap").innerText = formatMarketCap(marketCapInMillions);
 document.getElementById("totalSupplyDisplay").innerText = formatTotalSupply(newCoin.totalSupply);
+document.getElementById("allTimeHighDisplay").innerText = (newCoin.allTimeHigh || newCoin.livePrice).toFixed(2);
 // ---
 // --- بروزرسانی نمایش دامیننس ---
 const dominanceDisplay = document.getElementById("dominanceDisplay");
@@ -1197,6 +1210,9 @@ console.log(`پامپ اولیه برای ${coin.name} قبلاً انجام ش�
 return;
 }
 coin.livePrice = newPrice;
+if (newPrice > (coin.allTimeHigh || 0)) {
+      coin.allTimeHigh = newPrice;
+  }
 const liveTf = coin.timeframes.live;
 const timeLabel = liveTf.labels.length ? Number(liveTf.labels[liveTf.labels.length - 1]) + 1 : 1;
 liveTf.labels.push(timeLabel);
@@ -1471,7 +1487,9 @@ name,
 totalSupply: supply,
 livePrice: initialPrice, // قیمت اولیه 10% کمتر
 coinAmount: myCoins,
-avgPrice: initialPrice, // میانگین قیمت خرید برابر با قیمت اولیه
+avgPrice: initialPrice,
+allTimeHigh: listingPrice, // چون پس از ساخت، قیمت به listingPrice پامپ می‌شود
+ // میانگین قیمت خرید برابر با قیمت اولیه
 stopLossPrice: initialPrice * (1 - 5/100),
 price24hAgo: initialPrice,
 cycleStep: 0,
@@ -1964,6 +1982,7 @@ limitOrders = []; currentBitcoinDominance = 40; lastUpdatedMonth = virtualMonth;
 coins = {
 bitcoin: {
 name: "بیتکوین", totalSupply: 21000000, livePrice: 16000,
+allTimeHigh: 16000,
 coinAmount: 0, avgPrice: 0, stopLossPrice: 0, price24hAgo: 16000, cycleStep: 0,
 timeframes: {
 live:  createInitialTimeframeData(16000),
@@ -1976,6 +1995,7 @@ liquidityPool: 1_000_000_000 // مقدار اولیه صندوق
 },
 ethereum: {
 name: "اتریوم", totalSupply: 120000000, livePrice: 1100,
+allTimeHigh: 1100,
 coinAmount: 0, avgPrice: 0, stopLossPrice: 0, price24hAgo: 1100, cycleStep: 0,
 timeframes: {
 live:  createInitialTimeframeData(1100),
@@ -1989,6 +2009,7 @@ dominance: 11 // دامیننس اولیه 11%
 },
 binance: {
 name: "بایننس کوین", totalSupply: 140000000, livePrice: 200,
+allTimeHigh: 200,
 coinAmount: 0, avgPrice: 0, stopLossPrice: 0, price24hAgo: 200, cycleStep: 0,
 timeframes: {
 live:  createInitialTimeframeData(200),
