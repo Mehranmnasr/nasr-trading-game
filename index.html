@@ -721,9 +721,9 @@ return Math.min(Math.max(c, minCorrelation), maxCorrelation);
 }
 function getCyclicFactor(currentStep, cycleLen) {
 const phase = (currentStep % cycleLen) / cycleLen;
-if (phase < 0.5) return 1 + (phase * 1.2) * 0.052 + 0.002 * Math.sin(phase * Math.PI);
+if (phase < 0.5) return 1 + (phase * 1.2) * 0.052 + 0.005 * Math.sin(phase * Math.PI);
 const sub = (phase - 0.5) * 1.2;
-return 1 - (sub * 0.047) + 0.002 * Math.sin(sub * Math.PI);
+return 1 - (sub * 0.047) + 0.005 * Math.sin(sub * Math.PI);
 }
 /***********************
 * Wallet & History    *
