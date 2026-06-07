@@ -1302,7 +1302,7 @@ coin.avgPrice = coin.coinAmount > 0
 ? ((coin.avgPrice * (coin.coinAmount - coinsBought)) + (newPrice * coinsBought)) / coin.coinAmount
 : newPrice;
 if (!isPriceFrozen && coinsBought >= onePercentSupply) {
-const newPumpedPrice = newPrice * 1.05;
+const newPumpedPrice = newPrice * 1.01;
 applyPriceChangeForCoin(coinKey, newPumpedPrice);
 if (coinKey === 'bitcoin') coins.bitcoin.livePrice = newPumpedPrice;
 alert(`🔥 خرید بزرگ (${(coinsBought / coin.totalSupply * 100).toFixed(2)}%)!`);
@@ -1322,7 +1322,7 @@ coin.coinAmount -= coinsToSell;
 if (coin.coinAmount <= 0) { coin.coinAmount = 0; coin.avgPrice = 0; }
 addTradeHistoryRecord(coinKey, realizedPnl);
 if (!isPriceFrozen && coinsToSell >= onePercentSupply) {
-const newDumpedPrice = newPrice * 0.95;
+const newDumpedPrice = newPrice * 0.99;
 applyPriceChangeForCoin(coinKey, newDumpedPrice);
 if (coinKey === 'bitcoin') coins.bitcoin.livePrice = newDumpedPrice;
 alert(`📉 فروش بزرگ (${(coinsToSell / coin.totalSupply * 100).toFixed(2)}%)!`);
@@ -1898,10 +1898,10 @@ const stopLossPercent = parseInt(document.getElementById("stopLossPercent").valu
 coin.stopLossPrice = coin.avgPrice * (1 - stopLossPercent / 100);
 const onePercentSupply = coin.totalSupply * 0.01;
 if (!isPriceFrozen && coinsBought >= onePercentSupply) {
-const newPrice = coin.livePrice * 1.02;
+const newPrice = coin.livePrice * 1.01;
 applyPriceChangeForCoin(currentCoin, newPrice);
 if (currentCoin === 'bitcoin') coins.bitcoin.livePrice = newPrice;
-alert(`🔥 پامپ! خرید بزرگ (${(coinsBought / coin.totalSupply * 100).toFixed(2)}%) باعث رشد  2% قیمت شد !`);
+alert(`🔥 پامپ! خرید بزرگ (${(coinsBought / coin.totalSupply * 100).toFixed(2)}%) باعث رشد  1% قیمت شد !`);
 } else {
 updateDisplay();
 }
