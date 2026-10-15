@@ -128,7 +128,8 @@ margin: 10px auto 0;
 position: fixed; top: 0; left: 0; width: 100%; height: 100%;
 background: rgba(0,0,0,0.5); z-index: 999;
 }
-#walletCard, #upgradeCard, #infoCard, #profileCard, #myCoinForm, #historyCard, #npcCard {
+#walletCard, #upgradeCard, #infoCard, #profileCard, #myCoinForm, #historyCard,
+#nftCard, #npcCard {
 display: none;
 position: fixed;
 top: 70px;
@@ -143,6 +144,11 @@ box-shadow: 0 4px 10px rgba(0,0,0,0.3);
 z-index: 1000;
 cursor: pointer;
 }
+#nftCard{
+  width:390px;
+  max-height:80vh;
+  overflow-y:auto;
+}
 #historyCard { width: 360px; max-height: 340px; overflow-y: auto; }
 #walletCard ul { text-align: right; max-height: 200px; overflow-y: auto; padding-right: 20px; }
 #walletCard li { list-style: none; padding: 8px; border-bottom: 1px solid #eee; }
@@ -154,6 +160,42 @@ display: flex; justify-content: space-between; align-items: center;
 padding: 8px 0; border-bottom: 1px solid #eee;
 }
 #upgradeCard .upgrade-item:last-child { border-bottom: none; }
+.nft-item{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  border:1px solid #ddd;
+  border-radius:10px;
+  padding:10px;
+  margin:8px 0;
+  background:#fafafa;
+}
+.nft-item.owned{
+  border-color:#28a745;
+  background:#f2fff5;
+}
+.nft-icon{
+  font-size:28px;
+  width:38px;
+}
+.nft-info{
+  flex:1;
+  text-align:right;
+  font-size:13px;
+  line-height:1.5;
+}
+.nft-actions{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+}
+.nft-actions .btn{
+  padding:6px 10px;
+  font-size:12px;
+  margin:0;
+  min-width:58px;
+}
 #upgradeTab { background-color: #6f42c1; }
 #upgradeTab.active { background-color: #5a32a3; }
 .upgrade-tab-inactive { opacity: 0.5; cursor: not-allowed; }
@@ -293,6 +335,12 @@ cursor: pointer;
 <button class="upgrade-btn" id="upgradeMarketingBtn">خرید</button>
 </div>
 <small>برای بستن، کلیک کنید</small>
+</div>
+  <span class="tab" id="nftTab">🎁</span>
+  <div id="nftCard">
+  <h3>بازار NFT 🎁</h3>
+  <div id="nftList"></div>
+  <small>برای بستن، روی فضای خالی کارت کلیک کنید</small>
 </div>
 </div>
 <span class="timeframe-tab active" data-frame="live">1 دقیقه</span>
@@ -507,6 +555,18 @@ isActive: true
 let priceChart = null;
 let candlestickSeries = null;
 let smaSeries = null;
+
+const nftCatalog = [
+  { id: 'crown',      emoji: '👑', name: 'تاج افسانه‌ای',        rarity: 'افسانه‌ای', fraction: 0.025 },
+  { id: 'diamond',    emoji: '💎', name: 'الماس افسانه‌ای',      rarity: 'افسانه‌ای', fraction: 0.020 },
+  { id: 'ring',       emoji: '💍', name: 'حلقه حماسی',          rarity: 'حماسی',     fraction: 0.015 },
+  { id: 'trophy',     emoji: '🏆', name: 'جام حماسی',           rarity: 'حماسی',     fraction: 0.012 },
+  { id: 'medal',      emoji: '🏅', name: 'مدال کمیاب',          rarity: 'کمیاب',     fraction: 0.008 },
+  { id: 'vase',       emoji: '🏺', name: 'کوزه کمیاب',          rarity: 'کمیاب',     fraction: 0.006 },
+  { id: 'grayVase',   emoji: '⚱️', name: 'کوزه خاکستری کمیاب',  rarity: 'کمیاب',     fraction: 0.005 },
+  { id: 'scroll',     emoji: '📜', name: 'طومار ویژه',           rarity: 'ویژه',      fraction: 0.003 }
+];
+
 /***********************
 * Utilities           *
 ***********************/
@@ -545,6 +605,14 @@ function formatTotalSupply(value) {
 if (value >= 1_000_000_000) return (value / 1_000_000_000).toFixed(2) + "B";
 if (value >= 1_000_000)     return (value / 1_000_000).toFixed(2) + "M";
 return value.toLocaleString();
+}
+// نمایش مقدار ارز با جداکننده هزارگان و بدون صفرهای اعشاری اضافی
+function formatCoinAmount(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "0";
+  return amount.toLocaleString("en-US", {
+    maximumFractionDigits: 8
+  });
 }
 function updateCalendarDisplay(day, month, year) {
 document.getElementById("virtualDayDisplay").innerText = `${day}/${month}/${year}`;
@@ -785,6 +853,174 @@ tradeHistory = [];
 renderHistory();
 saveGame();
 }
+
+/***********************
+ * NFT System
+ ***********************/
+// تبدیل کاراکترهای ویژه به متن امن برای نمایش داخل HTML
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[character]);
+}
+
+function getNftCost(nft) {
+  if (!personalCoinKey || !coins[personalCoinKey]) return 0;
+  const coin = coins[personalCoinKey];
+  return Number((coin.totalSupply * nft.fraction).toFixed(4));
+}
+
+function renderNftCard() {
+  const container = document.getElementById("nftList");
+  if (!container) return;
+
+  if (!personalCoinKey || !coins[personalCoinKey]) {
+    container.innerHTML = "<p>ابتدا از تب 🪙+ ارز شخصی خود را بسازید.</p>";
+    return;
+  }
+
+  const coin = coins[personalCoinKey];
+
+  if (!(coin.upgrades || []).includes("NFT")) {
+    container.innerHTML = "<p>برای فعال شدن بازار NFT، از قسمت 💎 ارتقای ارز دیجیتال، «قابلیت استفاده در NFT» را بخرید.</p>";
+    return;
+  }
+
+  const walletAmount = wallet[personalCoinKey]?.amount || 0;
+
+  container.innerHTML = "";
+
+  nftCatalog.forEach(nft => {
+    const cost = getNftCost(nft);
+    const owned = !!(coin.nftOwned && coin.nftOwned[nft.id]);
+
+    const div = document.createElement("div");
+    div.className = "nft-item" + (owned ? " owned" : "");
+
+    div.innerHTML = `
+      <div class="nft-icon">${nft.emoji}</div>
+      <div class="nft-info">
+        <strong>${esc(nft.name)}</strong><br>
+        <span class="small-note">درجه: ${esc(nft.rarity)}</span><br>
+        قیمت: <strong>${formatCoinAmount(cost)}</strong> ${esc(coin.name)}
+      </div>
+      <div class="nft-actions">
+        <button class="btn" style="background-color:#28a745;" onclick="buyNft('${nft.id}')">خرید</button>
+        <button class="btn" style="background-color:#dc3545;" onclick="sellNft('${nft.id}')">فروش</button>
+      </div>
+    `;
+
+    const buyBtn = div.querySelectorAll("button")[0];
+    const sellBtn = div.querySelectorAll("button")[1];
+
+    // بعد از خرید، دکمه خرید کم‌رنگ و غیرفعال می‌شود
+    buyBtn.disabled = owned;
+    if (owned) buyBtn.classList.add("dim");
+
+    // قبل از خرید، دکمه فروش کم‌رنگ است و بعد از خرید پررنگ/فعال می‌شود
+    sellBtn.disabled = !owned;
+    if (!owned) sellBtn.classList.add("dim");
+
+    container.appendChild(div);
+  });
+}
+
+function buyNft(nftId) {
+  if (!personalCoinKey || !coins[personalCoinKey]) {
+    alert("ابتدا ارز شخصی خود را بسازید.");
+    return;
+  }
+
+  const coin = coins[personalCoinKey];
+
+  if (!(coin.upgrades || []).includes("NFT")) {
+    alert("ابتدا ارتقاء «قابلیت استفاده در NFT» را بخرید.");
+    return;
+  }
+
+  const nft = nftCatalog.find(x => x.id === nftId);
+  if (!nft) return;
+
+  if (coin.nftOwned && coin.nftOwned[nft.id]) {
+    alert("این NFT قبلاً خریداری شده است. تا وقتی آن را نفروخته‌ای، نمی‌توانی دوباره بخری.");
+    return;
+  }
+
+  const cost = getNftCost(nft);
+  const walletEntry = wallet[personalCoinKey];
+  const walletAmount = walletEntry?.amount || 0;
+
+  if (walletAmount < cost) {
+    alert(`برای خرید این NFT باید ${formatCoinAmount(cost)} ${coin.name} در کیف پول داشته باشی.
+از قسمت «انتقال به کیف پول» استفاده کن.`);
+    return;
+  }
+
+  walletEntry.amount -= cost;
+
+  if (walletEntry.amount <= 0) {
+    delete wallet[personalCoinKey];
+  }
+
+  if (!coin.nftOwned) coin.nftOwned = {};
+  if (!coin.nftLockedAmounts) coin.nftLockedAmounts = {};
+
+  coin.nftOwned[nft.id] = true;
+  coin.nftLockedAmounts[nft.id] = cost;
+  coin.nftLocked = (coin.nftLocked || 0) + cost;
+
+  updateDisplay();
+  renderNftCard();
+  saveGame();
+
+  alert(`🎁 ${nft.emoji} ${nft.name} خریداری شد!
+${formatCoinAmount(cost)} ${coin.name} از کیف پول تو قفل شد.`);
+}
+
+function sellNft(nftId) {
+  if (!personalCoinKey || !coins[personalCoinKey]) {
+    alert("ابتدا ارز شخصی خود را بسازید.");
+    return;
+  }
+
+  const coin = coins[personalCoinKey];
+
+  if (!coin.nftOwned || !coin.nftOwned[nftId]) {
+    alert("تو این NFT را نداری.");
+    return;
+  }
+
+  const nft = nftCatalog.find(x => x.id === nftId);
+  if (!nft) return;
+
+  const lockedCoins = (coin.nftLockedAmounts && coin.nftLockedAmounts[nftId]) || getNftCost(nft);
+
+  coin.nftLocked = Math.max(0, (coin.nftLocked || 0) - lockedCoins);
+  coin.marketAvailable = (coin.marketAvailable || 0) + lockedCoins;
+
+  const dollarValue = lockedCoins * coin.livePrice;
+
+  balance += dollarValue;
+
+  coin.nftOwned[nftId] = false;
+
+  if (coin.nftLockedAmounts) {
+    delete coin.nftLockedAmounts[nftId];
+  }
+
+  updateDisplay();
+  renderNftCard();
+  saveGame();
+
+  alert(`✅ ${nft.emoji} ${nft.name} فروخته شد.
+${formatCoinAmount(lockedCoins)} ${coin.name} به بازار برگشت.
+$${dollarValue.toFixed(2)} بر اساس ارزش فعلی ارز شخصی به موجودی دلاری تو اضافه شد.`);
+}
+
 /***********************
 * NPC Trading Logic   *
 ***********************/
@@ -937,7 +1173,10 @@ return { level: "تازه کار", stars: "⭐" };
 }
 function updateCoinPercentages() {
 const coin = getCurrentCoinData();
-const totalBoughtAmount = coin.coinAmount + (wallet[currentCoin]?.amount || 0);
+const totalBoughtAmount =
+    coin.coinAmount +
+    (wallet[currentCoin]?.amount || 0) +
+    (coin.nftLocked || 0);
 const percentBought = (totalBoughtAmount / coin.totalSupply) * 100;
 const percentRemaining = 100 - percentBought;
 document.getElementById("percentBought").innerText = percentBought.toFixed(4) + "%";
@@ -1002,7 +1241,10 @@ document.getElementById("assetValue").innerText = assetValue.toFixed(2);
 const profitLoss = (coin.livePrice - coin.avgPrice) * coin.coinAmount;
 document.getElementById("profitLoss").innerText = profitLoss.toFixed(2);
 document.getElementById("stopLossDisplay").innerText = coin.coinAmount > 0 ? coin.stopLossPrice.toFixed(2) : "—";
-const totalBoughtByUser = coin.coinAmount + (wallet[currentCoin]?.amount || 0);
+const totalBoughtByUser =
+    coin.coinAmount +
+    (wallet[currentCoin]?.amount || 0) +
+    (coin.nftLocked || 0);
 document.getElementById("buyBtn").disabled  = (balance <= 0 || totalBoughtByUser >= coin.totalSupply);
 document.getElementById("sellBtn").disabled = (coin.coinAmount <= 0);
 document.getElementById("currentBalanceProfile").innerText = balance.toFixed(2);
@@ -1435,6 +1677,10 @@ if (currentCoin !== personalCoinKey) { alert("ابتدا ارز شخصی خود 
 if (balance < 1000) { alert("موجودی شما برای خرید این ارتقاء کافی نیست! نیاز به 1000 دلار دارید."); return; }
 const coin = getCurrentCoinData();
 if (!coin.upgrades) coin.upgrades = [];
+coin.nftOwned = coin.nftOwned || {};
+coin.nftLocked = coin.nftLocked || 0;
+coin.nftLockedAmounts = coin.nftLockedAmounts || {};
+ 
 if (coin.upgrades.includes(upgradeName)) { alert("این ارتقاء قبلاً خریداری شده است."); return; }
 balance -= 1000;
 coin.upgrades.push(upgradeName);
@@ -1501,6 +1747,9 @@ day1:  createInitialTimeframeDataWithPump(listingPrice),
 week1: createInitialTimeframeDataWithPump(listingPrice)
 },
 upgrades: [],
+nftOwned: {},
+nftLocked: 0,
+nftLockedAmounts: {},
 liquidityPool: 1000,
 dominance: 0.1, // دامیننس اولیه 0.1%
 listingPrice: listingPrice, // ذخیره قیمت لیست برای استفاده بعدی
@@ -1697,6 +1946,25 @@ overlay.remove();
 document.body.style.overflow = '';
 }
 }
+// نمایش/بستن کارت‌ها؛ این تابع برای تب و کارت NFT هم استفاده می‌شود.
+function toggleCard(cardId) {
+  const card = document.getElementById(cardId);
+  if (!card) return;
+
+  if (card.style.display === 'block') {
+    card.style.display = 'none';
+    hideOverlay();
+  } else {
+    card.style.display = 'block';
+    showOverlay();
+
+    // هنگام باز شدن بازار NFT، فهرست آن را تازه‌سازی کن.
+    if (cardId === 'nftCard') {
+      renderNftCard();
+    }
+  }
+}
+
 // Tabs & Cards toggles
 document.getElementById('infoTab').addEventListener('click', () => {
 const infoCard = document.getElementById('infoCard');
@@ -1770,6 +2038,7 @@ aboutCard.style.display = 'block'; showOverlay();
 aboutCard.style.display = 'none'; hideOverlay();
 }
 });
+document.getElementById("nftTab").addEventListener("click", () => toggleCard("nftCard"));
 // اضافه کردن event listener برای بستن کارت "درباره بازی" با کلیک روی آن (مثلاً روی فضای خالی یا متن)
 document.getElementById('aboutCard').addEventListener('click', (e) => {
 // جلوگیری از بسته شدن کارت هنگام کلیک روی لینک
@@ -1781,6 +2050,10 @@ return; // از اجرای بقیه کد جلوگیری می‌کند
 document.getElementById('aboutCard').style.display = 'none';
 hideOverlay();
 });
+document.getElementById("nftCard").addEventListener("click", function(e) {
+    if (e.target.closest("button")) return;
+    toggleCard("nftCard");
+  });
 // تب و کارت "NPC"
 document.getElementById('npcTab').addEventListener('click', () => {
 const npcCard = document.getElementById('npcCard');
@@ -1804,7 +2077,7 @@ hideOverlay();
 document.addEventListener('click', (e) => {
 if (e.target.id === 'overlay') {
 hideOverlay();
-['infoCard','myCoinForm','secretForm','profileCard','walletCard','upgradeCard','historyCard', 'aboutCard', 'npcCard'].forEach(id => {
+['infoCard','myCoinForm','secretForm','profileCard','walletCard','upgradeCard','historyCard', 'aboutCard', 'nftCard' ,'npcCard'].forEach(id => {
 const el = document.getElementById(id);
 if (el) el.style.display = 'none';
 });
@@ -1871,13 +2144,22 @@ const percent = parseInt(document.getElementById("tradePercent").value);
 const amountToSpend = balance * (percent / 100);
 if (orderType === 'market') {
 // --- فقط کد مارکت ---
-const totalBoughtByUser = coin.coinAmount + (wallet[currentCoin]?.amount || 0);
+const totalBoughtByUser =
+    coin.coinAmount +
+    (wallet[currentCoin]?.amount || 0) +
+    (coin.nftLocked || 0);
 if (balance <= 0 || totalBoughtByUser >= coin.totalSupply) {
 if (totalBoughtByUser >= coin.totalSupply) alert("❌ تمام سکه‌ها توسط شما (در صرافی یا کیف پول) خریداری شده‌اند! دیگر امکان خرید وجود ندارد.");
 return;
 }
 const coinsBought = amountToSpend / coin.livePrice;
-const maxCoinsAllowedBySupply = coin.totalSupply - (coin.coinAmount + (wallet[currentCoin]?.amount || 0));
+const maxCoinsAllowedBySupply =
+    coin.totalSupply -
+    (
+        coin.coinAmount +
+        (wallet[currentCoin]?.amount || 0) +
+        (coin.nftLocked || 0)
+    );
 if (coinsBought > maxCoinsAllowedBySupply) {
 if (maxCoinsAllowedBySupply <= 0) { alert("❌ تمام سکه‌ها توسط شما خریداری شده‌اند!"); return; }
 const newAmount = maxCoinsAllowedBySupply * coin.livePrice;
@@ -2135,6 +2417,10 @@ if (currentCoin === 'ethereum' || currentCoin === 'binance' || (personalCoinKey 
 document.getElementById("altDominanceDisplay").style.display = 'block';
 document.getElementById("altDominanceValue").innerText = coins[currentCoin].dominance.toFixed(2) + "%";
 }
+const nftCard = document.getElementById("nftCard");
+  if (nftCard && nftCard.style.display === "block") {
+    renderNftCard();
+  }
 }
 document.getElementById("totalSupplyDisplay").innerText = formatTotalSupply(coin.totalSupply);
 document.getElementById("coinNameTab").innerText = "بیتکوین ₿";
