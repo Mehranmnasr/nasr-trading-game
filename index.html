@@ -516,6 +516,7 @@ let personalCoinKey = null;
 let limitOrders = [];
 let wallet = {};
 let tradeHistory = [];
+let lastCrownRewardMonth = null; // آخرین ماهی که پاداش تاج پرداخت شده
 // NPC State
 let npcData = {
 aiBank: {
@@ -901,13 +902,19 @@ function renderNftCard() {
     const div = document.createElement("div");
     div.className = "nft-item" + (owned ? " owned" : "");
 
-    div.innerHTML = `
-      <div class="nft-icon">${nft.emoji}</div>
-      <div class="nft-info">
-        <strong>${esc(nft.name)}</strong><br>
-        <span class="small-note">درجه: ${esc(nft.rarity)}</span><br>
-        قیمت: <strong>${formatCoinAmount(cost)}</strong> ${esc(coin.name)}
-      </div>
+    let rewardBadge = "";
+if (nft.id === 'crown') {
+  rewardBadge = `<br><span style="color:#d4af37; font-weight:bold; font-size:11px;">💰 پاداش ماهانه: $1,000</span>`;
+}
+
+div.innerHTML = `
+  <div class="nft-icon">${nft.emoji}</div>
+  <div class="nft-info">
+    <strong>${esc(nft.name)}</strong><br>
+    <span class="small-note">درجه: ${esc(nft.rarity)}</span><br>
+    قیمت: <strong>${formatCoinAmount(cost)}</strong> ${esc(coin.name)}
+    ${rewardBadge}
+  </div>
       <div class="nft-actions">
         <button class="btn" style="background-color:#28a745;" onclick="buyNft('${nft.id}')">خرید</button>
         <button class="btn" style="background-color:#dc3545;" onclick="sellNft('${nft.id}')">فروش</button>
@@ -1019,6 +1026,40 @@ function sellNft(nftId) {
   alert(`✅ ${nft.emoji} ${nft.name} فروخته شد.
 ${formatCoinAmount(lockedCoins)} ${coin.name} به بازار برگشت.
 $${dollarValue.toFixed(2)} بر اساس ارزش فعلی ارز شخصی به موجودی دلاری تو اضافه شد.`);
+}
+
+/***********************
+* Crown Monthly Reward *
+***********************/
+function checkCrownMonthlyReward() {
+  // شرط 1: کاربر ارز شخصی داشته باشه
+  if (!personalCoinKey || !coins[personalCoinKey]) return;
+
+  const coin = coins[personalCoinKey];
+
+  // شرط 2: باید NFT تاج رو داشته باشه
+  if (!coin.nftOwned || !coin.nftOwned.crown) return;
+
+  // محاسبه ماه فعلی به صورت یکتا (سال * 12 + ماه)
+  const currentMonthKey = virtualYear * 12 + virtualMonth;
+
+  // شرط 3: اگر این ماه قبلاً پرداخت شده، رد کن
+  if (lastCrownRewardMonth === currentMonthKey) return;
+
+  // اهدای پاداش
+  const reward = 1000;
+  balance += reward;
+  lastCrownRewardMonth = currentMonthKey;
+
+  updateDisplay();
+  saveGame();
+
+  // نوتیفیکیشن
+  setTimeout(() => {
+    alert(`👑 پاداش ماهانه NFT تاج افسانه‌ای!\n\n$${reward.toLocaleString()} به موجودی دلاری شما اضافه شد.\n\n📅 ماه ${virtualMonth}/${virtualYear}`);
+  }, 500);
+
+  console.log(`👑 پاداش تاج پرداخت شد: $${reward} برای ماه ${virtualMonth}/${virtualYear}`);
 }
 
 /***********************
@@ -1280,7 +1321,7 @@ coins, currentCoin, personalCoinKey, isPriceFrozen, liquidityPool, // liquidityP
 traderName, initialBalance, limitOrders, wallet,
 currentBitcoinDominance, lastUpdatedMonth,
 personalCoinUpgrades: coins[personalCoinKey]?.upgrades || [],
-tradeHistory,
+tradeHistory,lastCrownRewardMonth, //
 // ذخیره اطلاعات NPC
 npcData
 };
@@ -1318,6 +1359,7 @@ if (!coins[personalCoinKey]) coins[personalCoinKey] = { upgrades: [] };
 coins[personalCoinKey].upgrades = data.personalCoinUpgrades;
 }
 tradeHistory = Array.isArray(data.tradeHistory) ? data.tradeHistory : [];
+lastCrownRewardMonth = data.lastCrownRewardMonth ?? null;
 renderHistory();
 // --- بارگذاری یا تنظیم پیش‌فرض دامیننس ---
 for (const key in coins) {
@@ -1782,6 +1824,7 @@ if (isPriceFrozen) return;
 if (virtualMonth !== lastUpdatedMonth) {
 currentBitcoinDominance = calculateBitcoinDominance(virtualMonth);
 lastUpdatedMonth = virtualMonth;
+checkCrownMonthlyReward();
 if (currentCoin === 'bitcoin') {
 document.getElementById("bitcoinDominanceValue").innerText = currentBitcoinDominance.toFixed(2) + "%";
 }
@@ -2344,6 +2387,7 @@ currentCoin = 'bitcoin';
 personalCoinKey = null;
 wallet = {};
 tradeHistory = [];
+lastCrownRewardMonth = null;
 renderHistory();
 updateCoinPercentages();
 updateDisplay();
