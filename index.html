@@ -234,6 +234,20 @@ cursor: pointer;
 #npcTab { background-color: #1A1A1A; }
 #npcTab.active { background-color: #5a6268; }
 /* استایل کارت NPC */
+#npcCard {
+  max-height: 85vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+#aiBankHistoryContainer,
+#aiBrokerHistoryContainer {
+  max-height: 200px !important;
+  overflow-y: auto !important;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 6px;
+  background: #fafafa;
+}
 #npcCard h3 { color: black; margin-top: 0; }
 #npcCard .trader-section { margin-bottom: 20px; }
 #npcCard .trader-section h4 { color: black; margin: 10px 0 5px 0; }
@@ -452,8 +466,10 @@ cursor: pointer;
 <h3 style="color:black;">ربات‌های ترید (NPC)</h3>
 <div class="trader-section">
 <h4>AiBank 🐮</h4>
-<p>موجودی: $<span id="aiBankBalance">1000</span></p>
+<p>موجودی: $<span id="aiBankBalance">100M</span></p>
 <p>وین ریت کل: <span id="aiBankWinRate">0%</span></p>
+<p>در حال ترید: <span id="aiBankCoin">بیتکوین</span></p>
+<p style="font-size:12px; color:#666;">آخرین معامله: <span id="aiBankLastTrade">—</span></p>
 <div>
 <button class="btn toggle-history-btn" onclick="toggleNpcHistory('aiBank')"> نمایش سابقه</button>
 </div>
@@ -463,8 +479,10 @@ cursor: pointer;
 </div>
 <div class="trader-section">
 <h4>AiBroker 🐻</h4>
-<p>موجودی: $<span id="aiBrokerBalance">1000</span></p>
+<p>موجودی: $<span id="aiBrokerBalance">100M</span></p>
 <p>وین ریت کل: <span id="aiBrokerWinRate">0%</span></p>
+<p>در حال ترید: <span id="aiBrokerCoin">بیتکوین</span></p>
+<p style="font-size:12px; color:#666;">آخرین معامله: <span id="aiBrokerLastTrade">—</span></p>
 <div>
 <button class="btn toggle-history-btn" onclick="toggleNpcHistory('aiBroker')"> نمایش سابقه</button>
 </div>
@@ -522,11 +540,11 @@ let npcData = {
 aiBank: {
 name: "AiBank",
 symbol: "🐮",
-balance: 1000,
-initialBalance: 1000,
+balance: 10000000000,
+initialBalance: 10000000000,
 position: { amount: 0, avgPrice: 0, stopLossPrice: 0 },
 tradeCount: 0,
-maxTradesPerMonth: 4,
+maxTradesPerMonth: 8,
 maxActivePositions: 1,
 resetHistory: true, // ریست سابقه هر ماه
 coin: 'bitcoin',
@@ -538,11 +556,11 @@ isActive: true
 aiBroker: {
 name: "AiBroker",
 symbol: "🐻",
-balance: 1000,
-initialBalance: 1000,
+balance: 10000000000,
+initialBalance: 10000000000,
 position: { amount: 0, avgPrice: 0, stopLossPrice: 0 },
 tradeCount: 0,
-maxTradesPerMonth: 4,
+maxTradesPerMonth: 8,
 maxActivePositions: 1,
 resetHistory: true, // ریست سابقه هر ماه
 coin: 'bitcoin',
@@ -1065,15 +1083,61 @@ function checkCrownMonthlyReward() {
 /***********************
 * NPC Trading Logic   *
 ***********************/
+function formatBigMoney(value) {
+  if (value >= 1_000_000_000) return (value / 1_000_000_000).toFixed(2) + 'B';
+  if (value >= 1_000_000) return (value / 1_000_000).toFixed(2) + 'M';
+  if (value >= 1_000) return (value / 1_000).toFixed(1) + 'K';
+  return value.toFixed(2);
+}
+
 function updateNpcDisplay() {
-// AiBank
-document.getElementById("aiBankBalance").innerText = npcData.aiBank.balance.toFixed(2);
-const aiBankPnL = ((npcData.aiBank.balance - npcData.aiBank.initialBalance) / npcData.aiBank.initialBalance) * 100;
-document.getElementById("aiBankWinRate").innerText = (aiBankPnL >= 0 ? '+' : '') + aiBankPnL.toFixed(2) + '%';
-// AiBroker
-document.getElementById("aiBrokerBalance").innerText = npcData.aiBroker.balance.toFixed(2);
-const aiBrokerPnL = ((npcData.aiBroker.balance - npcData.aiBroker.initialBalance) / npcData.aiBroker.initialBalance) * 100;
-document.getElementById("aiBrokerWinRate").innerText = (aiBrokerPnL >= 0 ? '+' : '') + aiBrokerPnL.toFixed(2) + '%';
+  // AiBank
+  const aiBank = npcData.aiBank;
+  const aiBankBalanceEl = document.getElementById("aiBankBalance");
+  if (aiBankBalanceEl) aiBankBalanceEl.innerText = formatBigMoney(aiBank.balance);
+  const aiBankPnL = ((aiBank.balance - aiBank.initialBalance) / aiBank.initialBalance) * 100;
+  const aiBankWinRateEl = document.getElementById("aiBankWinRate");
+  if (aiBankWinRateEl) aiBankWinRateEl.innerText = (aiBankPnL >= 0 ? '+' : '') + aiBankPnL.toFixed(2) + '%';
+
+  // نمایش ارز فعلی NPC
+  const aiBankCoinEl = document.getElementById("aiBankCoin");
+  if (aiBankCoinEl) aiBankCoinEl.innerText = coins[aiBank.coin]?.name || '—';
+
+  // نمایش آخرین معامله
+  const aiBankLastTradeEl = document.getElementById("aiBankLastTrade");
+  if (aiBankLastTradeEl) {
+    if (aiBank.lastTrade) {
+      const lt = aiBank.lastTrade;
+      const emoji = lt.type === 'buy' ? '🟢' : '🔴';
+      const verb = lt.type === 'buy' ? 'خرید' : 'فروش';
+      aiBankLastTradeEl.innerText = `${emoji} ${verb} ${lt.percent.toFixed(3)}% در $${lt.price.toFixed(0)}`;
+    } else {
+      aiBankLastTradeEl.innerText = '—';
+    }
+  }
+
+  // AiBroker
+  const aiBroker = npcData.aiBroker;
+  const aiBrokerBalanceEl = document.getElementById("aiBrokerBalance");
+  if (aiBrokerBalanceEl) aiBrokerBalanceEl.innerText = formatBigMoney(aiBroker.balance);
+  const aiBrokerPnL = ((aiBroker.balance - aiBroker.initialBalance) / aiBroker.initialBalance) * 100;
+  const aiBrokerWinRateEl = document.getElementById("aiBrokerWinRate");
+  if (aiBrokerWinRateEl) aiBrokerWinRateEl.innerText = (aiBrokerPnL >= 0 ? '+' : '') + aiBrokerPnL.toFixed(2) + '%';
+
+  const aiBrokerCoinEl = document.getElementById("aiBrokerCoin");
+  if (aiBrokerCoinEl) aiBrokerCoinEl.innerText = coins[aiBroker.coin]?.name || '—';
+
+  const aiBrokerLastTradeEl = document.getElementById("aiBrokerLastTrade");
+  if (aiBrokerLastTradeEl) {
+    if (aiBroker.lastTrade) {
+      const lt = aiBroker.lastTrade;
+      const emoji = lt.type === 'buy' ? '🟢' : '🔴';
+      const verb = lt.type === 'buy' ? 'خرید' : 'فروش';
+      aiBrokerLastTradeEl.innerText = `${emoji} ${verb} ${lt.percent.toFixed(3)}% در $${lt.price.toFixed(0)}`;
+    } else {
+      aiBrokerLastTradeEl.innerText = '—';
+    }
+  }
 }
 function renderNpcHistory() {
 // AiBank
@@ -1114,34 +1178,125 @@ renderNpcHistory();
 saveGame();
 }
 function executeNpcTrade(npcKey) {
-const npc = npcData[npcKey];
-const coin = coins[npc.coin];
-if (!coin) return;
-if (npc.position.amount > 0) return; // فقط یک پوزیشن فعال
-if (npc.tradeCount >= npc.maxTradesPerMonth) return; // فقط 4 معامله در ماه
-const amountToSpend = npc.balance * npc.entryPercent;
-if (npc.balance < amountToSpend) return; // موجودی کافی نیست
-const coinsBought = amountToSpend / coin.livePrice;
-npc.balance -= amountToSpend;
-npc.position.amount = coinsBought;
-npc.position.avgPrice = coin.livePrice;
-npc.position.stopLossPrice = coin.livePrice * (1 - npc.stopLossPercent);
-npc.tradeCount++;
+  const npc = npcData[npcKey];
+  const coinKey = npc.coin;
+  const coin = coins[coinKey];
+  if (!coin) return;
+  if (npc.position.amount > 0) return;
+  if (npc.tradeCount >= npc.maxTradesPerMonth) return;
+
+  const amountToSpend = npc.balance * npc.entryPercent;
+  if (npc.balance < amountToSpend) return;
+
+  // 👇 محاسبه عرضه آزاد بازار
+  const availableSupply = getAvailableMarketSupply(coinKey);
+  if (availableSupply < 0.00000001) {
+    console.log(`⛔ ${npc.name}: عرضه آزاد ${coin.name} تمام شده — خرید ممکن نیست`);
+    return;
+  }
+
+  const coinsBought = amountToSpend / coin.livePrice;
+  const actualBuy = Math.min(coinsBought, availableSupply);
+  const actualCost = actualBuy * coin.livePrice;
+
+  if (actualBuy <= 0) return;
+
+  // 👇 NPC پوزیشن می‌گیره (سکه از بازار آزاد خارج می‌شه — در getAvailableMarketSupply خودکار لحاظ می‌شه)
+  npc.balance -= actualCost;
+  npc.position.amount = actualBuy;
+  npc.position.avgPrice = coin.livePrice;
+  npc.position.stopLossPrice = coin.livePrice * (1 - npc.stopLossPercent);
+  npc.tradeCount++;
+
+  // 👇 ثبت آخرین معامله
+  npc.lastTrade = {
+    type: 'buy',
+    amount: actualBuy,
+    price: coin.livePrice,
+    percent: (actualBuy / coin.totalSupply) * 100
+  };
+
+  // 👇 پامپ اگه بالای ۱٪ عرضه خریده باشه
+  const onePercentSupply = coin.totalSupply * 0.01;
+  if (!isPriceFrozen && actualBuy >= onePercentSupply) {
+    const newPrice = coin.livePrice * 1.01;
+    applyPriceChangeForCoin(coinKey, newPrice);
+    if (coinKey === 'bitcoin') coins.bitcoin.livePrice = newPrice;
+    console.log(`🐮 ${npc.name} پامپ کرد! خرید ${(actualBuy/coin.totalSupply*100).toFixed(2)}% از عرضه`);
+  }
+
+    console.log(`✅ ${npc.name} خرید موفق: ${actualBuy.toFixed(4)} ${coin.name} به $${coin.livePrice.toFixed(2)}`);
+  
+  // 👇 بروزرسانی UI اگه NPC روی ارز فعلی معامله کرد
+  if (npc.coin === currentCoin) {
+    updateCoinPercentages();
+    updateDisplay();
+  }
+  
+  saveGame();
 }
+
+function executeNpcSell(npcKey, reason = 'signal') {
+  const npc = npcData[npcKey];
+  const coinKey = npc.coin;
+  const coin = coins[coinKey];
+  if (!coin || npc.position.amount <= 0) return;
+
+  const coinsToSell = npc.position.amount;
+  const realizedPnl = (coin.livePrice - npc.position.avgPrice) * coinsToSell;
+
+  // 👇 فروش واقعی: NPC پوزیشن رو می‌بنده (سکه به بازار آزاد برمی‌گرده)
+  npc.balance += coinsToSell * coin.livePrice;
+
+  // ثبت آخرین معامله
+  npc.lastTrade = {
+    type: 'sell',
+    amount: coinsToSell,
+    price: coin.livePrice,
+    percent: (coinsToSell / coin.totalSupply) * 100,
+    reason: reason
+  };
+
+  // 👇 ثبت در تاریخچه قبل از پاک کردن پوزیشن
+  addNpcTradeHistory(npcKey, coinKey, realizedPnl);
+
+  // پاک کردن پوزیشن
+  npc.position = { amount: 0, avgPrice: 0, stopLossPrice: 0 };
+
+  // 👇 دامپ اگه بالای ۱٪ عرضه فروخته باشه
+  const onePercentSupply = coin.totalSupply * 0.01;
+  if (!isPriceFrozen && coinsToSell >= onePercentSupply) {
+    const newPrice = coin.livePrice * 0.99;
+    applyPriceChangeForCoin(coinKey, newPrice);
+    if (coinKey === 'bitcoin') coins.bitcoin.livePrice = newPrice;
+    console.log(`🐻 ${npc.name} دامپ کرد! فروش ${(coinsToSell/coin.totalSupply*100).toFixed(2)}% از عرضه`);
+  }
+
+    console.log(`✅ ${npc.name} فروش موفق (${reason}): ${coinsToSell.toFixed(4)} ${coin.name} به $${coin.livePrice.toFixed(2)} — PnL: $${realizedPnl.toFixed(2)}`);
+  
+  // 👇 بروزرسانی UI اگه NPC روی ارز فعلی معامله کرد
+  if (npc.coin === currentCoin) {
+    updateCoinPercentages();
+    updateDisplay();
+  }
+  
+  saveGame();
+}
+
 function updateNpcPositions() {
-for (const npcKey of ['aiBank', 'aiBroker']) {
-const npc = npcData[npcKey];
-const coin = coins[npc.coin];
-if (!coin) continue;
-// بررسی حد ضرر
-if (npc.position.amount > 0 && coin.livePrice <= npc.position.stopLossPrice) {
-const realizedPnl = (coin.livePrice - npc.position.avgPrice) * npc.position.amount;
-npc.balance += npc.position.amount * coin.livePrice;
-addNpcTradeHistory(npcKey, npc.coin, realizedPnl);
-npc.position = { amount: 0, avgPrice: 0, stopLossPrice: 0 };
+  for (const npcKey of ['aiBank', 'aiBroker']) {
+    const npc = npcData[npcKey];
+    const coin = coins[npc.coin];
+    if (!coin) continue;
+
+    // بررسی حد ضرر
+    if (npc.position.amount > 0 && coin.livePrice <= npc.position.stopLossPrice) {
+      executeNpcSell(npcKey, 'stopLoss');
+      console.log(`⚠️ حد ضرر ${npc.name} فعال شد — فروش اضطراری در $${coin.livePrice.toFixed(2)}`);
+    }
+  }
 }
-}
-}
+
 function resetNpcMonthly() {
 for (const npcKey of ['aiBank', 'aiBroker']) {
 const npc = npcData[npcKey];
@@ -1151,50 +1306,99 @@ npc.history = [];
 npc.tradeCount = 0;
 }
 }
+// 👇 محاسبه عرضه آزاد بازار (سکه‌هایی که واقعاً قابل معامله هستن)
+function getAvailableMarketSupply(coinKey) {
+  const coin = coins[coinKey];
+  if (!coin) return 0;
+
+  // سکه‌های کاربر در صرافی (coinAmount)
+  const userInExchange = coin.coinAmount || 0;
+
+  // سکه‌های کاربر در کیف پول
+  const userInWallet = wallet[coinKey]?.amount || 0;
+
+  // NFTهای قفل‌شده
+  const nftLocked = coin.nftLocked || 0;
+
+  // سکه‌های خود NPC (اگه خریده باشه، از بازار آزاد کم شده)
+  let npcHeld = 0;
+  for (const npcKey in npcData) {
+    const npc = npcData[npcKey];
+    if (npc.coin === coinKey && npc.position.amount > 0) {
+      npcHeld += npc.position.amount;
+    }
+  }
+
+  return Math.max(0, coin.totalSupply - userInExchange - userInWallet - nftLocked - npcHeld);
+}
+function selectNpcCoin(npcKey) {
+  // NPC اولویتش ارز شخصی کاربره (اگه وجود داشته باشه)
+  // وگرنه بیتکوین
+  if (personalCoinKey && coins[personalCoinKey]) {
+    const personalCoin = coins[personalCoinKey];
+    // فقط اگه عرضه آزاد کافی داشته باشه
+    if (personalCoin.coinAmount > personalCoin.totalSupply * 0.001) {
+      return personalCoinKey;
+    }
+  }
+  return 'bitcoin';
+}
+
 function runNpcLogic() {
-if (isPriceFrozen) return;
-const bitcoinHour1Data = coins.bitcoin.timeframes.hour1;
-const rsiHour1Data = bitcoinHour1Data.rsiData;
-const smaHour1Data = bitcoinHour1Data.smaData;
-const currentPrice = coins.bitcoin.livePrice;
-// بررسی آخرین مقدار RSI و SMA
-let lastRsi = null;
-for (let i = rsiHour1Data.length - 1; i >= 0; i--) {
-if (rsiHour1Data[i] !== null) { lastRsi = rsiHour1Data[i]; break; }
+  if (isPriceFrozen) return;
+
+  // انتخاب ارز برای هر NPC
+  for (const npcKey of ['aiBank', 'aiBroker']) {
+    const npc = npcData[npcKey];
+    // ارز پویا: بیتکوین یا ارز شخصی
+    npc.coin = selectNpcCoin(npcKey);
+
+    const coin = coins[npc.coin];
+    if (!coin) continue;
+
+    const hour1Data = coin.timeframes.hour1;
+    const rsiHour1Data = hour1Data.rsiData;
+    const smaHour1Data = hour1Data.smaData;
+    const currentPrice = coin.livePrice;
+
+    // آخرین RSI
+    let lastRsi = null;
+    for (let i = rsiHour1Data.length - 1; i >= 0; i--) {
+      if (rsiHour1Data[i] !== null) { lastRsi = rsiHour1Data[i]; break; }
+    }
+    // آخرین SMA
+    let lastSma = null;
+    for (let i = smaHour1Data.length - 1; i >= 0; i--) {
+      if (smaHour1Data[i] !== null) { lastSma = smaHour1Data[i]; break; }
+    }
+
+    // 🤖 AiBank - بر اساس SMA
+    if (npcKey === 'aiBank' && lastSma !== null) {
+      if (currentPrice > lastSma && npc.position.amount === 0) {
+        executeNpcTrade('aiBank');
+        console.log(`🤖 AiBank (${npc.symbol}) خرید در $${currentPrice.toFixed(2)} (قیمت > SMA50)`);
+      } else if (currentPrice < lastSma && npc.position.amount > 0) {
+        executeNpcSell('aiBank', 'SMA');
+        console.log(`🤖 AiBank (${npc.symbol}) فروش در $${currentPrice.toFixed(2)} (قیمت < SMA50)`);
+      }
+    }
+
+    // 🐻 AiBroker - بر اساس RSI
+    if (npcKey === 'aiBroker' && lastRsi !== null) {
+      if (lastRsi > 50 && npc.position.amount === 0) {
+        executeNpcTrade('aiBroker');
+        console.log(`🤖 AiBroker (${npc.symbol}) خرید در $${currentPrice.toFixed(2)} (RSI > 50)`);
+      } else if (lastRsi < 50 && npc.position.amount > 0) {
+        executeNpcSell('aiBroker', 'RSI');
+        console.log(`🤖 AiBroker (${npc.symbol}) فروش در $${currentPrice.toFixed(2)} (RSI < 50)`);
+      }
+    }
+  }
+
+  updateNpcPositions();
+  updateNpcDisplay();
 }
-let lastSma = null;
-for (let i = smaHour1Data.length - 1; i >= 0; i--) {
-if (smaHour1Data[i] !== null) { lastSma = smaHour1Data[i]; break; }
-}
-// AiBank - بر اساس SMA
-if (npcData.aiBank.isActive && lastSma !== null) {
-if (currentPrice > lastSma && npcData.aiBank.position.amount === 0) {
-executeNpcTrade('aiBank');
-console.log(`🤖 AiBank (${npcData.aiBank.symbol}) خرید بیتکوین در قیمت $${currentPrice.toFixed(2)} (قیمت > SMA50)`);
-} else if (currentPrice < lastSma && npcData.aiBank.position.amount > 0) {
-const realizedPnl = (currentPrice - npcData.aiBank.position.avgPrice) * npcData.aiBank.position.amount;
-npcData.aiBank.balance += npcData.aiBank.position.amount * currentPrice;
-addNpcTradeHistory('aiBank', 'bitcoin', realizedPnl);
-npcData.aiBank.position = { amount: 0, avgPrice: 0, stopLossPrice: 0 };
-console.log(`🤖 AiBank (${npcData.aiBank.symbol}) فروش بیتکوین در قیمت $${currentPrice.toFixed(2)} (قیمت < SMA50)`);
-}
-}
-// AiBroker - بر اساس RSI
-if (npcData.aiBroker.isActive && lastRsi !== null) {
-if (lastRsi > 50 && npcData.aiBroker.position.amount === 0) {
-executeNpcTrade('aiBroker');
-console.log(`🤖 AiBroker (${npcData.aiBroker.symbol}) خرید بیتکوین در قیمت $${currentPrice.toFixed(2)} (RSI > 50)`);
-} else if (lastRsi < 50 && npcData.aiBroker.position.amount > 0) {
-const realizedPnl = (currentPrice - npcData.aiBroker.position.avgPrice) * npcData.aiBroker.position.amount;
-npcData.aiBroker.balance += npcData.aiBroker.position.amount * currentPrice;
-addNpcTradeHistory('aiBroker', 'bitcoin', realizedPnl);
-npcData.aiBroker.position = { amount: 0, avgPrice: 0, stopLossPrice: 0 };
-console.log(`🤖 AiBroker (${npcData.aiBroker.symbol}) فروش بیتکوین در قیمت $${currentPrice.toFixed(2)} (RSI < 50)`);
-}
-}
-updateNpcPositions();
-updateNpcDisplay();
-}
+
 function toggleNpcHistory(npcKey) {
 const containerId = `${npcKey}HistoryContainer`;
 const container = document.getElementById(containerId);
@@ -1213,17 +1417,32 @@ if (pnlPercent > 20)  return { level: "متوسط",     stars: "⭐⭐" };
 return { level: "تازه کار", stars: "⭐" };
 }
 function updateCoinPercentages() {
-const coin = getCurrentCoinData();
-const totalBoughtAmount =
-    coin.coinAmount +
+  const coin = getCurrentCoinData();
+
+  // 👇 سکه‌های کاربر (صرافی + کیف پول + NFT)
+  const userHeld = 
+    (coin.coinAmount || 0) +
     (wallet[currentCoin]?.amount || 0) +
     (coin.nftLocked || 0);
-const percentBought = (totalBoughtAmount / coin.totalSupply) * 100;
-const percentRemaining = 100 - percentBought;
-document.getElementById("percentBought").innerText = percentBought.toFixed(4) + "%";
-document.getElementById("percentRemaining").innerText = percentRemaining.toFixed(4) + "%";
-// بروزرسانی نمایش موجودی صندوق نقدینگی ارز فعلی
-document.getElementById("liquidityPoolValue").innerText = coin.liquidityPool.toLocaleString();
+
+  // 👇 سکه‌های NPCها روی این ارز
+  let npcHeld = 0;
+  for (const npcKey in npcData) {
+    const npc = npcData[npcKey];
+    if (npc.coin === currentCoin && npc.position.amount > 0) {
+      npcHeld += npc.position.amount;
+    }
+  }
+
+  // 👇 مجموع سکه‌های خارج‌شده از بازار آزاد
+  const totalBoughtAmount = userHeld + npcHeld;
+
+  const percentBought = (totalBoughtAmount / coin.totalSupply) * 100;
+  const percentRemaining = 100 - percentBought;
+
+  document.getElementById("percentBought").innerText = percentBought.toFixed(4) + "%";
+  document.getElementById("percentRemaining").innerText = percentRemaining.toFixed(4) + "%";
+  document.getElementById("liquidityPoolValue").innerText = coin.liquidityPool.toLocaleString();
 }
 function updateUpgradeButtons() {
 if (currentCoin !== personalCoinKey) return;
@@ -1979,7 +2198,6 @@ if (!document.getElementById('overlay')) {
 const overlay = document.createElement('div');
 overlay.id = 'overlay';
 document.body.appendChild(overlay);
-document.body.style.overflow = 'hidden';
 }
 }
 function hideOverlay() {
@@ -2352,11 +2570,11 @@ npcData = {
 aiBank: {
 name: "AiBank",
 symbol: "🐮",
-balance: 1000,
-initialBalance: 1000,
+balance: 10000000000,
+initialBalance: 10000000000,
 position: { amount: 0, avgPrice: 0, stopLossPrice: 0 },
 tradeCount: 0,
-maxTradesPerMonth: 4,
+maxTradesPerMonth: 8,
 maxActivePositions: 1,
 resetHistory: true,
 coin: 'bitcoin',
@@ -2368,11 +2586,11 @@ isActive: true
 aiBroker: {
 name: "AiBroker",
 symbol: "🐻",
-balance: 1000,
-initialBalance: 1000,
+balance: 10000000000,
+initialBalance: 10000000000,
 position: { amount: 0, avgPrice: 0, stopLossPrice: 0 },
 tradeCount: 0,
-maxTradesPerMonth: 4,
+maxTradesPerMonth: 8,
 maxActivePositions: 1,
 resetHistory: true,
 coin: 'bitcoin',
